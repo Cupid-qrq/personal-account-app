@@ -96,11 +96,20 @@ def normalize_records(df: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+def _normalize_time_column(df: pd.DataFrame) -> pd.DataFrame:
+    if "时间" in df.columns:
+        df["时间"] = pd.to_datetime(df["时间"], errors="coerce")
+    return df
+
+
 def _merge_with_existing_csv(file_path: Path, df_new: pd.DataFrame) -> pd.DataFrame:
+    df_new = _normalize_time_column(df_new.copy())
     if file_path.exists():
         df_old = pd.read_csv(file_path)
+        df_old = _normalize_time_column(df_old)
         merged = pd.concat([df_old, df_new], ignore_index=True)
-        merged = merged.drop_duplicates(subset=["ID"], keep="last")
+        if "ID" in merged.columns:
+            merged = merged.drop_duplicates(subset=["ID"], keep="last")
         return merged
     return df_new
 
@@ -112,7 +121,8 @@ def save_month_archives(df: pd.DataFrame, archive_dir: Path) -> List[str]:
     for month, group in df.groupby("月份"):
         target = archive_dir / f"{month}.csv"
         merged = _merge_with_existing_csv(target, group)
-        merged = merged.sort_values("时间")
+        if "时间" in merged.columns:
+            merged = merged.sort_values("时间", na_position="last")
         merged.to_csv(target, index=False, encoding="utf-8-sig")
         months_saved.append(month)
 
@@ -122,7 +132,8 @@ def save_month_archives(df: pd.DataFrame, archive_dir: Path) -> List[str]:
 def save_master(df: pd.DataFrame, master_file: Path) -> int:
     master_file.parent.mkdir(parents=True, exist_ok=True)
     merged = _merge_with_existing_csv(master_file, df)
-    merged = merged.sort_values("时间")
+    if "时间" in merged.columns:
+        merged = merged.sort_values("时间", na_position="last")
     merged.to_csv(master_file, index=False, encoding="utf-8-sig")
     return len(merged)
 

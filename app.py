@@ -17,6 +17,8 @@ from src.analytics import (
     expense_by_subcategory,
     filter_month,
     generate_budget_suggestion,
+    month_over_month,
+    monthly_trend,
     monthly_overview,
     prepare_detail_table,
     spending_efficiency_score,
@@ -33,7 +35,7 @@ from src.data_pipeline import (
 
 # ============ Streamlit 配置 ============
 st.set_page_config(
-    page_title="个人账本 | v0.4",
+    page_title="个人账本 | v0.5",
     page_icon="💳",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -232,7 +234,7 @@ if master_df.empty:
 
 # 页面标题
 st.markdown("# 💳 财务分析系统")
-st.markdown("*智能消费洞察 v0.4*")
+st.markdown("*智能消费洞察 v0.5*")
 
 # 月份选择
 months = sorted(master_df["月份"].dropna().unique().tolist())
@@ -267,7 +269,7 @@ for col, (label, value) in zip(cols, metrics_data):
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">{label}</div>
-            <div class="metric-value">{value if '¥' in value else label.split()[1]}{value if '¥' in value or value.isdigit() else ''}</div>
+            <div class="metric-value">{value}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -278,6 +280,72 @@ daily_df = daily_expense_trend(month_df)
 habit = consumption_habit(month_df)
 alerts_data = consumption_alerts(month_df)
 score_data = spending_efficiency_score(month_df)
+monthly_df = monthly_trend(master_df)
+mom_data = month_over_month(master_df, selected_month)
+
+# ===== 月度对比 =====
+st.markdown("---")
+st.markdown("### 📆 月度对比")
+
+if not monthly_df.empty:
+    col_month_chart, col_month_metric = st.columns([2, 1])
+
+    with col_month_chart:
+        trend_long = monthly_df.melt(
+            id_vars="月份",
+            value_vars=["收入", "支出", "结余"],
+            var_name="指标",
+            value_name="金额",
+        )
+        fig_month = px.line(
+            trend_long,
+            x="月份",
+            y="金额",
+            color="指标",
+            markers=True,
+            line_shape="spline",
+        )
+        fig_month.update_layout(
+            height=320,
+            margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#e0e0e0"),
+            legend_title_text="",
+        )
+        st.plotly_chart(fig_month, use_container_width=True)
+
+    with col_month_metric:
+        selected_row = monthly_df[monthly_df["月份"] == selected_month]
+        if not selected_row.empty:
+            savings_rate = float(selected_row.iloc[0]["储蓄率"])
+            st.metric("当月储蓄率", f"{savings_rate:.1f}%")
+
+        if mom_data["has_previous"]:
+            st.metric(
+                f"支出环比 ({mom_data['previous_month']}→{selected_month})",
+                f"¥{mom_data['expense_delta']:+.0f}",
+                f"{mom_data['expense_delta_pct']:+.1f}%",
+            )
+            st.metric(
+                "收入环比",
+                f"¥{mom_data['income_delta']:+.0f}",
+                f"{mom_data['income_delta_pct']:+.1f}%",
+            )
+            st.metric(
+                "结余环比",
+                f"¥{mom_data['balance_delta']:+.0f}",
+                f"{mom_data['balance_delta_pct']:+.1f}%",
+            )
+        else:
+            st.info("当前月份没有上月可比较")
+
+    with st.expander("查看月度汇总表"):
+        display_monthly = monthly_df.copy()
+        for c in ["收入", "支出", "结余"]:
+            display_monthly[c] = display_monthly[c].apply(lambda x: f"¥{x:.2f}")
+        display_monthly["储蓄率"] = display_monthly["储蓄率"].apply(lambda x: f"{x:.2f}%")
+        st.dataframe(display_monthly, use_container_width=True, hide_index=True)
 
 # ===== 分析标签页 =====
 st.markdown("---")
@@ -425,4 +493,4 @@ with tab4:
             st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 st.markdown("---")
-st.caption("© 2026 个人财务分析系统 v0.4 | 修复版本")
+st.caption("© 2026 个人财务分析系统 v0.5 | 月度分析增强版")

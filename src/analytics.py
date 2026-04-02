@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Dict, List
 
 import pandas as pd
@@ -126,6 +125,15 @@ def consumption_alerts(df: pd.DataFrame) -> Dict[str, object]:
         return {"daily_avg": 0.0, "highest_day": "无", "highest_day_amount": 0.0, "alerts": []}
     
     expense_df = df[df["类型"] == "支出"].copy()
+    if expense_df.empty:
+        return {
+            "daily_avg": 0.0,
+            "daily_std": 0.0,
+            "highest_day": "无",
+            "highest_day_amount": 0.0,
+            "alerts": []
+        }
+
     expense_df["日期"] = pd.to_datetime(expense_df["时间"]).dt.date.astype(str)
     
     daily_totals = expense_df.groupby("日期")["金额"].sum()
@@ -267,3 +275,85 @@ def category_trend(df: pd.DataFrame) -> pd.DataFrame:
     # 按日期和分类分组
     trend = expense_df.groupby(["日期", "分类"], as_index=False)["金额"].sum()
     return trend.sort_values("日期")
+
+
+def monthly_trend(df: pd.DataFrame) -> pd.DataFrame:
+    """按月汇总收入/支出/结余与储蓄率。"""
+    if df.empty:
+        return pd.DataFrame(columns=["月份", "收入", "支出", "结余", "储蓄率"])
+
+    work = df.copy()
+    if "月份" not in work.columns:
+        work["月份"] = pd.to_datetime(work["时间"], errors="coerce").dt.to_period("M").astype(str)
+
+    grouped = (
+        work.groupby(["月份", "类型"], as_index=False)["金额"]
+        .sum()
+    )
+
+    pivot = grouped.pivot(index="月份", columns="类型", values="金额").fillna(0.0)
+    income = pivot["收入"] if "收入" in pivot.columns else pd.Series(0.0, index=pivot.index)
+    expense = pivot["支出"] if "支出" in pivot.columns else pd.Series(0.0, index=pivot.index)
+    out = pd.DataFrame({
+        "月份": pivot.index.astype(str),
+        "收入": income.values,
+        "支出": expense.values,
+    })
+    out["结余"] = out["收入"] - out["支出"]
+    out["储蓄率"] = out.apply(
+        lambda r: round((r["结余"] / r["收入"] * 100), 2) if r["收入"] > 0 else 0.0,
+        axis=1,
+    )
+    out = out.sort_values("月份").reset_index(drop=True)
+    return out
+
+
+def month_over_month(df: pd.DataFrame, selected_month: str) -> Dict[str, object]:
+    """返回所选月份与上月的环比信息。"""
+    trend = monthly_trend(df)
+    if trend.empty or selected_month not in set(trend["月份"]):
+        return {
+            "has_previous": False,
+            "current_month": selected_month,
+            "previous_month": None,
+            "expense_delta": 0.0,
+            "expense_delta_pct": 0.0,
+            "income_delta": 0.0,
+            "income_delta_pct": 0.0,
+            "balance_delta": 0.0,
+            "balance_delta_pct": 0.0,
+        }
+
+    idx = trend.index[trend["月份"] == selected_month][0]
+    current = trend.loc[idx]
+    if idx == 0:
+        return {
+            "has_previous": False,
+            "current_month": selected_month,
+            "previous_month": None,
+            "expense_delta": 0.0,
+            "expense_delta_pct": 0.0,
+            "income_delta": 0.0,
+            "income_delta_pct": 0.0,
+            "balance_delta": 0.0,
+            "balance_delta_pct": 0.0,
+        }
+
+    previous = trend.loc[idx - 1]
+
+    def _pct(cur: float, prev: float) -> float:
+        if prev == 0:
+            return 0.0
+        return round((cur - prev) / prev * 100, 2)
+
+    return {
+        "has_previous": True,
+        "current_month": selected_month,
+        "previous_month": previous["月份"],
+        "expense_delta": round(float(current["支出"] - previous["支出"]), 2),
+        "expense_delta_pct": _pct(float(current["支出"]), float(previous["支出"])),
+        "income_delta": round(float(current["收入"] - previous["收入"]), 2),
+        "income_delta_pct": _pct(float(current["收入"]), float(previous["收入"])),
+        "balance_delta": round(float(current["结余"] - previous["结余"]), 2),
+        "balance_delta_pct": _pct(float(current["结余"]), float(previous["结余"])),
+    }
