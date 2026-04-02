@@ -357,3 +357,107 @@ def month_over_month(df: pd.DataFrame, selected_month: str) -> Dict[str, object]
         "balance_delta": round(float(current["结余"] - previous["结余"]), 2),
         "balance_delta_pct": _pct(float(current["结余"]), float(previous["结余"])),
     }
+
+
+def monthly_category_share(df: pd.DataFrame) -> pd.DataFrame:
+    """按月输出各分类支出金额及占比。"""
+    if df.empty:
+        return pd.DataFrame(columns=["月份", "分类", "金额", "占比"])
+
+    work = df[df["类型"] == "支出"].copy()
+    if work.empty:
+        return pd.DataFrame(columns=["月份", "分类", "金额", "占比"])
+
+    if "月份" not in work.columns:
+        work["月份"] = pd.to_datetime(work["时间"], errors="coerce").dt.to_period("M").astype(str)
+
+    cat = work.groupby(["月份", "分类"], as_index=False)["金额"].sum()
+    month_total = work.groupby("月份", as_index=False)["金额"].sum().rename(columns={"金额": "月支出"})
+    out = cat.merge(month_total, on="月份", how="left")
+    out["占比"] = out.apply(
+        lambda r: round(r["金额"] / r["月支出"] * 100, 2) if r["月支出"] > 0 else 0.0,
+        axis=1,
+    )
+    out = out.drop(columns=["月支出"]).sort_values(["月份", "金额"], ascending=[True, False])
+    return out.reset_index(drop=True)
+
+
+def monthly_rhythm_heatmap(df: pd.DataFrame, month: str) -> pd.DataFrame:
+    """输出某月周序号 x 周几的支出热力数据。"""
+    if df.empty:
+        return pd.DataFrame(columns=["周序", "周几", "金额"])
+
+    work = df[(df["类型"] == "支出") & (df["月份"] == month)].copy()
+    if work.empty:
+        return pd.DataFrame(columns=["周序", "周几", "金额"])
+
+    dt = pd.to_datetime(work["时间"], errors="coerce")
+    work = work[dt.notna()].copy()
+    dt = pd.to_datetime(work["时间"], errors="coerce")
+
+    work["日"] = dt.dt.day
+    work["周序"] = ((work["日"] - 1) // 7 + 1).astype(int)
+    work["周几"] = dt.dt.weekday.astype(int)
+
+    grouped = work.groupby(["周序", "周几"], as_index=False)["金额"].sum()
+    weekday_map = {0: "周一", 1: "周二", 2: "周三", 3: "周四", 4: "周五", 5: "周六", 6: "周日"}
+    grouped["周几"] = grouped["周几"].map(weekday_map)
+    return grouped.sort_values(["周序", "周几"]).reset_index(drop=True)
+
+
+def monthly_insight_digest(df: pd.DataFrame, selected_month: str) -> Dict[str, object]:
+    """生成月度洞察摘要，用于卡片和文案。"""
+    trend = monthly_trend(df)
+    if trend.empty or selected_month not in set(trend["月份"]):
+        return {
+            "expense_rank": 0,
+            "month_count": 0,
+            "savings_rank": 0,
+            "top_category": "无",
+            "top_category_ratio": 0.0,
+            "volatility": 0.0,
+            "insights": ["当前月份数据不足，无法生成洞察"],
+        }
+
+    selected = trend[trend["月份"] == selected_month].iloc[0]
+    trend_expense_desc = trend.sort_values("支出", ascending=False).reset_index(drop=True)
+    trend_saving_desc = trend.sort_values("储蓄率", ascending=False).reset_index(drop=True)
+
+    expense_rank = int(trend_expense_desc.index[trend_expense_desc["月份"] == selected_month][0] + 1)
+    savings_rank = int(trend_saving_desc.index[trend_saving_desc["月份"] == selected_month][0] + 1)
+    month_count = int(len(trend))
+
+    month_df = filter_month(df, selected_month)
+    cat_df = expense_by_category(month_df)
+    if cat_df.empty:
+        top_category = "无"
+        top_ratio = 0.0
+    else:
+        top_category = str(cat_df.iloc[0]["分类"])
+        total_expense = float(cat_df["金额"].sum())
+        top_ratio = round(float(cat_df.iloc[0]["金额"]) / total_expense * 100, 2) if total_expense > 0 else 0.0
+
+    daily = daily_expense_trend(month_df)
+    if daily.empty or float(daily["金额"].mean()) == 0:
+        volatility = 0.0
+    else:
+        volatility = round(float(daily["金额"].std(ddof=0) / daily["金额"].mean() * 100), 2)
+
+    insights: List[str] = []
+    insights.append(f"本月支出在全部 {month_count} 个月中排名第 {expense_rank}。")
+    insights.append(f"本月储蓄率排名第 {savings_rank}，当月结余 ¥{float(selected['结余']):.0f}。")
+    insights.append(f"支出集中在 {top_category}，占当月支出 {top_ratio:.1f}%。")
+    if volatility > 60:
+        insights.append("日度消费波动较大，建议设置周预算并分散大额消费。")
+    else:
+        insights.append("日度消费波动相对稳定，可继续保持当前节奏。")
+
+    return {
+        "expense_rank": expense_rank,
+        "month_count": month_count,
+        "savings_rank": savings_rank,
+        "top_category": top_category,
+        "top_category_ratio": top_ratio,
+        "volatility": volatility,
+        "insights": insights,
+    }

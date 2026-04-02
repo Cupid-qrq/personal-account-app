@@ -1,13 +1,10 @@
-"""
-个人账本分析系统 v0.4
-- 多用户认证 + 权限控制
-- 移动端完全适配
-- 修复所有 DuplicateElementId 错误
-"""
+"""个人账本分析系统 v0.6 交互增强版。"""
 
 from pathlib import Path
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
 
 from src.analytics import (
     consumption_alerts,
@@ -18,6 +15,9 @@ from src.analytics import (
     filter_month,
     generate_budget_suggestion,
     month_over_month,
+    monthly_category_share,
+    monthly_insight_digest,
+    monthly_rhythm_heatmap,
     monthly_trend,
     monthly_overview,
     prepare_detail_table,
@@ -44,55 +44,138 @@ st.set_page_config(
 # ============ 全局样式 ============
 st.markdown("""
 <style>
-    /* 全局 CSS */
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    /* 毛玻璃卡片 */
-    .glass-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(104, 211, 255, 0.2);
-border-radius: 12px;
-        padding: 16px;
-        margin: 10px 0;
+
+    .stApp {
+        background:
+            radial-gradient(circle at 8% 18%, rgba(58, 185, 255, 0.16), transparent 38%),
+            radial-gradient(circle at 86% 20%, rgba(255, 171, 69, 0.14), transparent 35%),
+            linear-gradient(135deg, #0b0f19 0%, #121a29 48%, #0f1828 100%);
+        background-attachment: fixed;
     }
-    
-    /* 指标卡 */
+
+    .hero-wrap {
+        position: relative;
+        margin: 8px 0 14px 0;
+        padding: 18px 20px;
+        border-radius: 16px;
+        border: 1px solid rgba(117, 210, 255, 0.26);
+        background: linear-gradient(125deg, rgba(18, 30, 50, 0.75), rgba(26, 44, 74, 0.58));
+        overflow: hidden;
+        transform-style: preserve-3d;
+        perspective: 900px;
+    }
+
+    .hero-wrap::before,
+    .hero-wrap::after {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(2px);
+        animation: floatOrb 10s ease-in-out infinite;
+    }
+
+    .hero-wrap::before {
+        width: 140px;
+        height: 140px;
+        right: -30px;
+        top: -30px;
+        background: rgba(115, 201, 255, 0.28);
+    }
+
+    .hero-wrap::after {
+        width: 110px;
+        height: 110px;
+        left: -25px;
+        bottom: -25px;
+        background: rgba(255, 176, 87, 0.24);
+        animation-delay: 2s;
+    }
+
+    .hero-title {
+        position: relative;
+        z-index: 2;
+        font-size: 24px;
+        font-weight: 800;
+        color: #d8ecff;
+        letter-spacing: 0.6px;
+    }
+
+    .hero-sub {
+        position: relative;
+        z-index: 2;
+        margin-top: 6px;
+        font-size: 13px;
+        color: #9bc4e6;
+    }
+
     .metric-card {
-        background: linear-gradient(135deg, rgba(104, 211, 255, 0.08), rgba(142, 158, 255, 0.08));
-        border: 1px solid rgba(104, 211, 255, 0.2);
-        border-radius: 10px;
+        background: linear-gradient(145deg, rgba(93, 189, 243, 0.13), rgba(79, 122, 255, 0.09));
+        border: 1px solid rgba(114, 205, 255, 0.27);
+        border-radius: 12px;
         padding: 14px;
         text-align: center;
+        transform: perspective(800px) rotateX(0deg) rotateY(0deg);
+        transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+        box-shadow: 0 8px 22px rgba(5, 14, 30, 0.35);
+        animation: fadeInUp .45s ease both;
     }
-    
+
+    .metric-card:hover {
+        transform: perspective(800px) rotateX(6deg) rotateY(-6deg) translateY(-3px);
+        border-color: rgba(155, 228, 255, 0.48);
+        box-shadow: 0 18px 32px rgba(18, 34, 69, 0.55);
+    }
+
     .metric-value {
         font-size: 26px;
         font-weight: bold;
-        color: #68d3ff;
+        color: #7fd9ff;
     }
-    
+
     .metric-label {
         font-size: 11px;
-        color: #a0a0a0;
+        color: #9bb0c8;
         margin-bottom: 6px;
     }
-    
-    /* 警告卡 */
+
+    .info-chip {
+        display: inline-block;
+        margin-right: 8px;
+        margin-top: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(123, 199, 255, 0.24);
+        background: rgba(102, 171, 255, 0.12);
+        color: #b9dcff;
+        font-size: 11px;
+    }
+
     .alert-card {
-        background: rgba(255, 100, 100, 0.05);
+        background: rgba(255, 100, 100, 0.06);
         border-left: 4px solid #ff6464;
-        border-radius: 6px;
+        border-radius: 8px;
         padding: 10px;
         margin: 6px 0;
         font-size: 12px;
     }
-    
-    /* 移动端优化 */
+
+    @keyframes floatOrb {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(10px); }
+        100% { transform: translateY(0px); }
+    }
+
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
     @media (max-width: 768px) {
         .metric-value { font-size: 18px; }
         .metric-label { font-size: 10px; }
-        .glass-card { padding: 10px; margin: 6px 0; }
+        .hero-title { font-size: 18px; }
+        .hero-sub { font-size: 12px; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -235,6 +318,18 @@ if master_df.empty:
 # 页面标题
 st.markdown("# 💳 财务分析系统")
 st.markdown("*智能消费洞察 v0.5*")
+st.markdown(
+    """
+    <div class="hero-wrap">
+        <div class="hero-title">消费雷达与财务驾驶舱</div>
+        <div class="hero-sub">从月度结构、节律与风险信号中挖掘真正可执行的消费洞察</div>
+        <span class="info-chip">3D 卡片动效</span>
+        <span class="info-chip">多维月度分析</span>
+        <span class="info-chip">异常信号识别</span>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # 月份选择
 months = sorted(master_df["月份"].dropna().unique().tolist())
@@ -282,63 +377,156 @@ alerts_data = consumption_alerts(month_df)
 score_data = spending_efficiency_score(month_df)
 monthly_df = monthly_trend(master_df)
 mom_data = month_over_month(master_df, selected_month)
+share_df = monthly_category_share(master_df)
+rhythm_df = monthly_rhythm_heatmap(master_df, selected_month)
+digest = monthly_insight_digest(master_df, selected_month)
 
 # ===== 月度对比 =====
 st.markdown("---")
-st.markdown("### 📆 月度对比")
+st.markdown("### 📆 月度洞察中心")
 
 if not monthly_df.empty:
-    col_month_chart, col_month_metric = st.columns([2, 1])
+    mt1, mt2, mt3, mt4 = st.tabs(["📈 趋势总览", "🧩 结构透视", "🔥 消费节律", "🧠 智能洞察"])
 
-    with col_month_chart:
-        trend_long = monthly_df.melt(
-            id_vars="月份",
-            value_vars=["收入", "支出", "结余"],
-            var_name="指标",
-            value_name="金额",
-        )
-        fig_month = px.line(
-            trend_long,
-            x="月份",
-            y="金额",
-            color="指标",
-            markers=True,
-            line_shape="spline",
-        )
-        fig_month.update_layout(
-            height=320,
-            margin=dict(l=0, r=0, t=0, b=0),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#e0e0e0"),
-            legend_title_text="",
-        )
-        st.plotly_chart(fig_month, use_container_width=True)
+    with mt1:
+        col_month_chart, col_month_metric = st.columns([2, 1])
 
-    with col_month_metric:
-        selected_row = monthly_df[monthly_df["月份"] == selected_month]
-        if not selected_row.empty:
-            savings_rate = float(selected_row.iloc[0]["储蓄率"])
-            st.metric("当月储蓄率", f"{savings_rate:.1f}%")
+        with col_month_chart:
+            trend_long = monthly_df.melt(
+                id_vars="月份",
+                value_vars=["收入", "支出", "结余"],
+                var_name="指标",
+                value_name="金额",
+            )
+            fig_month = px.line(
+                trend_long,
+                x="月份",
+                y="金额",
+                color="指标",
+                markers=True,
+                line_shape="spline",
+            )
+            fig_month.update_layout(
+                height=330,
+                margin=dict(l=0, r=0, t=0, b=0),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e0e0e0"),
+                legend_title_text="",
+            )
+            st.plotly_chart(fig_month, use_container_width=True)
 
-        if mom_data["has_previous"]:
-            st.metric(
-                f"支出环比 ({mom_data['previous_month']}→{selected_month})",
-                f"¥{mom_data['expense_delta']:+.0f}",
-                f"{mom_data['expense_delta_pct']:+.1f}%",
+        with col_month_metric:
+            selected_row = monthly_df[monthly_df["月份"] == selected_month]
+            if not selected_row.empty:
+                savings_rate = float(selected_row.iloc[0]["储蓄率"])
+                st.metric("当月储蓄率", f"{savings_rate:.1f}%")
+
+            if mom_data["has_previous"]:
+                st.metric(
+                    f"支出环比 ({mom_data['previous_month']}→{selected_month})",
+                    f"¥{mom_data['expense_delta']:+.0f}",
+                    f"{mom_data['expense_delta_pct']:+.1f}%",
+                )
+                st.metric(
+                    "收入环比",
+                    f"¥{mom_data['income_delta']:+.0f}",
+                    f"{mom_data['income_delta_pct']:+.1f}%",
+                )
+                st.metric(
+                    "结余环比",
+                    f"¥{mom_data['balance_delta']:+.0f}",
+                    f"{mom_data['balance_delta_pct']:+.1f}%",
+                )
+            else:
+                st.info("当前月份没有上月可比较")
+
+    with mt2:
+        if not share_df.empty:
+            col_stack, col_3d = st.columns([1.3, 1])
+
+            with col_stack:
+                fig_area = px.area(
+                    share_df,
+                    x="月份",
+                    y="占比",
+                    color="分类",
+                    groupnorm="percent",
+                )
+                fig_area.update_layout(
+                    height=330,
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    font=dict(color="#e0e0e0"),
+                    yaxis_title="分类占比(%)",
+                )
+                st.plotly_chart(fig_area, use_container_width=True)
+
+            with col_3d:
+                share_3d = share_df.copy()
+                months_order = sorted(share_3d["月份"].unique().tolist())
+                share_3d["月序"] = share_3d["月份"].apply(lambda m: months_order.index(m) + 1)
+                fig_3d = px.scatter_3d(
+                    share_3d,
+                    x="月序",
+                    y="分类",
+                    z="金额",
+                    color="占比",
+                    size="金额",
+                    color_continuous_scale="Tealgrn",
+                )
+                fig_3d.update_layout(
+                    height=330,
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    scene=dict(
+                        bgcolor="rgba(0,0,0,0)",
+                        xaxis_title="月序",
+                        yaxis_title="分类",
+                        zaxis_title="金额",
+                    ),
+                    font=dict(color="#e0e0e0"),
+                )
+                st.plotly_chart(fig_3d, use_container_width=True)
+
+    with mt3:
+        if not rhythm_df.empty:
+            pivot = rhythm_df.pivot(index="周序", columns="周几", values="金额").fillna(0.0)
+            weekday_order = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+            pivot = pivot.reindex(columns=weekday_order, fill_value=0.0)
+            z_values = pivot.values.tolist()
+
+            fig_heat = go.Figure(
+                data=go.Heatmap(
+                    z=z_values,
+                    x=weekday_order,
+                    y=[f"第{int(i)}周" for i in pivot.index.tolist()],
+                    colorscale="YlGnBu",
+                    hovertemplate="%{y} %{x}<br>金额: ¥%{z:.2f}<extra></extra>",
+                )
             )
-            st.metric(
-                "收入环比",
-                f"¥{mom_data['income_delta']:+.0f}",
-                f"{mom_data['income_delta_pct']:+.1f}%",
+            fig_heat.update_layout(
+                height=320,
+                margin=dict(l=0, r=0, t=0, b=0),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e0e0e0"),
             )
-            st.metric(
-                "结余环比",
-                f"¥{mom_data['balance_delta']:+.0f}",
-                f"{mom_data['balance_delta_pct']:+.1f}%",
-            )
+            st.plotly_chart(fig_heat, use_container_width=True)
         else:
-            st.info("当前月份没有上月可比较")
+            st.info("该月支出记录不足，无法生成节律热力图")
+
+    with mt4:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("支出强度排名", f"{digest['expense_rank']}/{digest['month_count']}")
+        c2.metric("储蓄率排名", f"{digest['savings_rank']}/{digest['month_count']}")
+        c3.metric("日波动系数", f"{digest['volatility']:.1f}%")
+
+        st.markdown(f"**支出最集中的分类**: {digest['top_category']} ({digest['top_category_ratio']:.1f}%)")
+        st.markdown("**本月洞察结论**")
+        for item in digest["insights"]:
+            st.caption(f"• {item}")
 
     with st.expander("查看月度汇总表"):
         display_monthly = monthly_df.copy()
