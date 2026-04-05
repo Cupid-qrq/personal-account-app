@@ -84,11 +84,11 @@ st.set_page_config(
 st.markdown(f"""
 <style>
     /* 隐藏右上角 Share/菜单等系统控件 */
-    #MainMenu { visibility: hidden; }
-    [data-testid="stToolbar"] { display: none !important; }
-    [data-testid="stDecoration"] { display: none !important; }
-    [data-testid="stStatusWidget"] { display: none !important; }
-    header[data-testid="stHeader"] { display: none !important; }
+    #MainMenu {{ visibility: hidden; }}
+    [data-testid="stToolbar"] {{ display: none !important; }}
+    [data-testid="stDecoration"] {{ display: none !important; }}
+    [data-testid="stStatusWidget"] {{ display: none !important; }}
+    header[data-testid="stHeader"] {{ display: none !important; }}
 
     /* 深空主题背景 */
     .stApp {{
