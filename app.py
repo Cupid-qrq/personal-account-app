@@ -63,7 +63,6 @@ from src.auth import (
     can_upload,
     get_user_permissions,
     PermissionManager,
-    AuditLogger,
 )
 from src.data_pipeline import (
     discover_root_csv_files,
@@ -84,6 +83,13 @@ st.set_page_config(
 # ============ 全局样式（现代深空主题）============
 st.markdown(f"""
 <style>
+    /* 隐藏右上角 Share/菜单等系统控件 */
+    #MainMenu { visibility: hidden; }
+    [data-testid="stToolbar"] { display: none !important; }
+    [data-testid="stDecoration"] { display: none !important; }
+    [data-testid="stStatusWidget"] { display: none !important; }
+    header[data-testid="stHeader"] { display: none !important; }
+
     /* 深空主题背景 */
     .stApp {{
         background: linear-gradient(135deg, {COLORS['bg_primary']} 0%, {COLORS['bg_secondary']} 50%, {COLORS['bg_primary']} 100%);
@@ -215,28 +221,23 @@ def login_page():
         username = st.text_input("👤 用户名", placeholder="输入用户名", key="login_user")
         password = st.text_input("🔑 密码", type="password", placeholder="输入密码", key="login_pass")
         
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("🚀 登录", use_container_width=True, key="do_login"):
-                if not username or not password:
-                    st.error("❌ 用户名和密码不能为空")
+        if st.button("🚀 登录", use_container_width=True, key="do_login"):
+            if not username or not password:
+                st.error("❌ 用户名和密码不能为空")
+            else:
+                success, user_name, role = authenticate_user(username, password)
+                if success:
+                    st.session_state.logged_in = True
+                    st.session_state.username = username
+                    st.session_state.user_role = role
+                    st.session_state.user_perms = get_user_permissions(username)
+                    st.success(f"🎉 欢迎, {user_name}!")
+                    st.balloons()
+                    import time
+                    time.sleep(1.2)
+                    st.rerun()
                 else:
-                    success, user_name, role = authenticate_user(username, password)
-                    if success:
-                        st.session_state.logged_in = True
-                        st.session_state.username = username
-                        st.session_state.user_role = role
-                        st.session_state.user_perms = get_user_permissions(username)
-                        st.success(f"🎉 欢迎, {user_name}!")
-                        st.balloons()
-                        import time
-                        time.sleep(1.2)
-                        st.rerun()
-                    else:
-                        st.error("❌ 用户名或密码错误")
-        
-        with col_btn2:
-            st.button("📖 帮助", use_container_width=True, disabled=True)
+                    st.error("❌ 用户名或密码错误")
         
         st.markdown("---")
         with st.expander("📋 演示账号"):
@@ -259,15 +260,6 @@ with st.sidebar:
         "admin": "管理员",
         "viewer": "访客",
     }
-    perm_name_map = {
-        "view_dashboard": "仪表盘",
-        "view_analytics": "分析中心",
-        "view_details": "详细账目",
-        "upload_data": "数据导入",
-        "export_data": "数据导出",
-        "manage_users": "用户管理",
-        "view_audit": "审计日志",
-    }
     
     col_user1, col_user2 = st.columns(2)
     with col_user1:
@@ -276,12 +268,6 @@ with st.sidebar:
         role_badge = "🔑" if st.session_state.user_role == "admin" else "👁️"
         role_text = role_name_map.get(st.session_state.user_role, st.session_state.user_role)
         st.write(f"__{role_badge} {role_text}__")
-    
-    display_perms = [perm_name_map.get(p, p) for p in st.session_state.user_perms]
-    perms_display = "、".join(display_perms[:3])
-    if len(st.session_state.user_perms) > 3:
-        perms_display += f" 等 (+{len(st.session_state.user_perms)-3})"
-    st.caption(f"权限: {perms_display if perms_display else '无'}")
     
     if st.button("🔐 登出", use_container_width=True, key="do_logout"):
         st.session_state.logged_in = False
@@ -339,24 +325,9 @@ with st.sidebar:
     st.markdown("### 🔗 快速链接")
     col_link1, col_link2 = st.columns(2)
     with col_link1:
-        st.link_button("⭐ GitHub", "https://github.com/Cupid-qrq/personal-account-app")
+        st.link_button("⭐ Star", "https://github.com/Cupid-qrq/personal-account-app/stargazers")
     with col_link2:
-        st.link_button("📚 文档", "https://github.com/Cupid-qrq/personal-account-app#readme")
-    
-    st.markdown("---")
-    with st.expander("ℹ️ 关于本系统"):
-        st.markdown("""
-        **账本管理系统 v0.6.1**
-        
-        企业级财务分析平台，提供：
-        - 🔐 RBAC 权限管理
-        - 📊 24+ 分析函数
-        - 🧠 AI 智能洞察
-        - 📈 年度对比分析
-        - 🚨 异常自动检测
-        
-        **最后更新**: 2026-04-05
-        """)
+        st.link_button("💻 GitHub项目", "https://github.com/Cupid-qrq/personal-account-app")
 
 # ===== 主视图 =====
 try:
@@ -370,23 +341,10 @@ if master_df.empty:
     st.stop()
 
 # 页面标题
-col_title1, col_title2 = st.columns([4, 1], gap="large")
-with col_title1:
-    st.markdown("""
-    # 💳 财务分析驾驶舱
-    **智能消费洞察 · 企业级分析 · v0.6.1**
-    """)
-with col_title2:
-    with st.expander("🔔 审计日志"):
-        try:
-            recent = AuditLogger.get_recent_events(5)
-            if recent:
-                for evt in recent[-3:]:
-                    st.caption(f"• {evt['event_type']} - {evt['timestamp'][-8:]}")
-            else:
-                st.caption("暂无审计记录")
-        except:
-            st.caption("日志加载中...")
+st.markdown("""
+# 💳 财务分析驾驶舱
+**智能消费洞察 · 企业级分析 · v0.6.1**
+""")
 
 # 月份选择
 months = sorted(master_df["月份"].dropna().unique().tolist())
