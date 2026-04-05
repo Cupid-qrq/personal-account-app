@@ -28,17 +28,18 @@ Use this skill when working on the ledger project to keep each iteration consist
    - do not restore legacy root sample files (`2026.csv`, `2026-04.csv`, `context_v0.6.txt`, root `项目需求.md`)
    - keep baseline assets in `data/origin/`
 7. Keep README external-facing only:
-   - user-facing features
-   - quick start
-   - deployment
-   - no internal debugging notes
-   - no exposed credentials
-8. Keep project memory updated with durable facts:
+   - keep sections minimal: main features, tech stack, deployment, quick start, license
+   - remove local run details that are not essential for external readers
+   - avoid internal debugging notes, internal changelog details, and credentials
+8. For medium/large feature updates, README and `.gitignore` must be reviewed and updated in the same iteration:
+   - README reflects current architecture and user-facing behavior
+   - `.gitignore` hides non-essential local/debug/intermediate files from repository surface
+9. Keep project memory updated with durable facts:
    - workflow rules
    - stable conventions
    - release status
-9. Finalize by committing and pushing to the connected GitHub repo.
-10. If Streamlit Cloud is connected, verify redeploy after push.
+10. Finalize by committing and pushing to the connected GitHub repo.
+11. If Streamlit Cloud is connected, verify redeploy after push.
 
 ## Standard Iteration Flow
 ### 1. Analyze
@@ -58,6 +59,7 @@ Use this skill when working on the ledger project to keep each iteration consist
 
 ### 4. Document
 - Update `README.md` if user-facing behavior changes.
+- For medium/large iterations, check and update `.gitignore` to keep repo surface clean.
 - Update `docs/迭代日志.md` for version history.
 - Update `docs/context_compact.md` for compressed project state.
 

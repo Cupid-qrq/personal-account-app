@@ -28,8 +28,24 @@ Thumbs.db
 # Streamlit secrets and local state
 .streamlit/secrets.toml
 .streamlit/*.log
+.streamlit/*.pid
+
+# Local env and debug configs
+.env
+.env.*
+!.env.example
+*.local
+logs/
+*.log
 
 # Runtime temp data
 data/processed/*.tmp
 data/processed/*.sqlite3
+data/origin/*.bak
+data/origin/*.tmp
+
+# Keep root surface clean
+/*.csv
+/context_*.txt
+/*_draft.md
 *.tmp
