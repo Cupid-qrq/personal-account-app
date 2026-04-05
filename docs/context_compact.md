@@ -40,6 +40,7 @@
 - 主表: data/processed/ledger_master.csv
 - 主表记录数: 99
 - 覆盖月份: 2026-01, 2026-02, 2026-03
+- 原始资料基线: data/origin/2026-04.csv, data/origin/项目需求.md
 - 月份分布:
   - 2026-01: 35
   - 2026-02: 25
@@ -84,6 +85,7 @@
 2. 校验通过后，必须执行 commit 并 push 到远程主分支。
 3. 若线上连接 Streamlit Cloud，push 后检查自动部署状态；失败则手动 Redeploy。
 4. README 仅保留对外发布信息，不暴露内部调试细节与演示凭证。
+5. 根目录保持精简，原始 CSV 与需求文档统一放在 data/origin/。
 
 ## iteration-workflow Skill
 - 已创建项目级 skill：.github/skills/iteration-workflow/SKILL.md

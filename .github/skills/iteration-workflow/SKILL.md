@@ -9,7 +9,7 @@ description: "Use when managing this ledger project iteration workflow: analyze 
 Use this skill when working on the ledger project to keep each iteration consistent, release-ready, and documented.
 
 ## When to Use
-- Fixing bugs in `app.py`, `src/analytics.py`, or `src/data_pipeline.py`
+- Fixing bugs in `src/ui_app.py`, `src/analytics.py`, or `src/data_pipeline.py`
 - Adding UI/visual improvements or monthly analysis features
 - Packaging a release version
 - Updating README, docs, context compression, and repo memory
@@ -24,32 +24,37 @@ Use this skill when working on the ledger project to keep each iteration consist
    - data sanity checks if data files changed
    - error scan for edited files
 5. Update release notes and context docs when behavior changes.
-6. Keep README external-facing only:
+6. Keep root directory clean:
+   - do not restore legacy root sample files (`2026.csv`, `2026-04.csv`, `context_v0.6.txt`, root `项目需求.md`)
+   - keep baseline assets in `data/origin/`
+7. Keep README external-facing only:
    - user-facing features
    - quick start
    - deployment
    - no internal debugging notes
    - no exposed credentials
-7. Keep project memory updated with durable facts:
+8. Keep project memory updated with durable facts:
    - workflow rules
    - stable conventions
    - release status
-8. Finalize by committing and pushing to the connected GitHub repo.
-9. If Streamlit Cloud is connected, verify redeploy after push.
+9. Finalize by committing and pushing to the connected GitHub repo.
+10. If Streamlit Cloud is connected, verify redeploy after push.
 
 ## Standard Iteration Flow
 ### 1. Analyze
 - Read the affected files.
 - Check current repo status and identify the smallest safe fix.
+- Confirm whether file deletions are intentional and part of workspace cleanup.
 
 ### 2. Implement
 - Edit only the files needed for the iteration.
-- Prefer modular changes in `src/` and keep `app.py` focused on composition.
+- Prefer modular changes in `src/` and keep `app.py` as thin entrypoint only.
 
 ### 3. Validate
 - Run syntax checks.
 - Verify data import/archiving paths if CSV logic changed.
 - Confirm the app still loads and key views still render.
+- Ensure deleted legacy files are not unintentionally reintroduced.
 
 ### 4. Document
 - Update `README.md` if user-facing behavior changes.
@@ -58,13 +63,17 @@ Use this skill when working on the ledger project to keep each iteration consist
 
 ### 5. Persist
 - Update repo memory with durable workflow or architecture facts.
-- Push the branch after validation.
+- Commit and push `main` after validation.
 
 ## Project Conventions
-- `app.py` is the main UI entry point.
+- `app.py` is a thin startup wrapper that imports `src/ui_app.py`.
+- `src/ui_app.py` owns Streamlit page composition and interaction.
 - `src/data_pipeline.py` owns import, normalization, archiving, and master-table merge logic.
+- `src/sqlite_store.py` owns SQLite master persistence.
+- `src/data_contract.py` is the single source of truth for canonical schema.
 - `src/analytics.py` owns aggregation and insight calculations.
-- Keep CSV archives under `data/archive/` and processed data under `data/processed/`.
+- Keep baseline raw assets under `data/origin/`.
+- Keep CSV archives under `data/archive/` and processed snapshots under `data/processed/`.
 - Keep external documentation concise and user-facing.
 
 ## Release Checklist
