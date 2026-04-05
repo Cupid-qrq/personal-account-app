@@ -17,7 +17,7 @@
 ## v0.5+ 核心更新
 1. 视觉层升级：动态背景、浮动光斑、3D 质感指标卡、Hero 信息区。
 2. 月度分析升级为四维中心：趋势总览、结构透视、消费节律、智能洞察。
-3. 新增数据函数：`monthly_category_share`、`monthly_rhythm_heatmap`、`monthly_insight_digest`。
+3. 新增数据函数：monthly_category_share、monthly_rhythm_heatmap、monthly_insight_digest。
 4. 保留并延续 v0.5 的稳定性修复与数据归档成果。
 
 ## v0.5 核心更新
@@ -74,4 +74,9 @@
 1. 完成功能或修复后，必须先执行基础校验（语法/关键数据检查）。
 2. 校验通过后，必须执行 commit 并 push 到远程主分支。
 3. 若线上连接 Streamlit Cloud，push 后检查自动部署状态；失败则手动 Redeploy。
-4. 对外 README 仅保留用户导向信息，不暴露内部调试细节与演示凭证。
+4. README 仅保留对外发布信息，不暴露内部调试细节与演示凭证。
+
+## iteration-workflow Skill
+- 已创建项目级 skill：.github/skills/iteration-workflow/SKILL.md
+- 用途：迭代时先分析代码，再实现、校验、更新文档/记忆，最后 commit + push
+- 触发方式：在 Copilot 对话中直接要求“使用 iteration-workflow skill 处理当前项目迭代”
