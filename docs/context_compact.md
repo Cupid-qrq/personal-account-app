@@ -1,6 +1,6 @@
-# Context Compact - 账本管理系统 v0.5 Final
+# Context Compact - 账本管理系统 v0.6.2
 
-更新时间: 2026-04-02
+更新时间: 2026-04-05
 
 ## 项目目标
 - 完成账单 CSV 的导入、清洗、去重、按月归档、主表汇总。
@@ -8,11 +8,18 @@
 - 在移动端和桌面端保持可用的分析体验。
 
 ## 当前版本状态
-- 版本: v0.5 Final（封版）
+- 版本: v0.6.2（稳定性修复 + 小样本宽松策略）
 - 主入口: app.py
 - 分析模块: src/analytics.py
 - 数据流水线: src/data_pipeline.py
 - 认证模块: src/auth.py
+
+## v0.6.2 核心更新
+1. 修复趋势图 Plotly 兼容问题：`hovermode="unified"` 改为 `hovermode="x unified"`。
+2. 趋势图渲染添加异常降级逻辑：渲染失败时自动回退为表格展示，避免整页报错。
+3. 侧边栏账户信息优化：角色/权限改为中文可读标签。
+4. 评分规则宽松化：`spending_efficiency_score` 与 `expense_health_index` 增加小样本友好策略。
+5. 异常检测误报控制：小样本阶段默认不报异常，IQR 阈值提高。
 
 ## v0.5+ 核心更新
 1. 视觉层升级：动态背景、浮动光斑、3D 质感指标卡、Hero 信息区。

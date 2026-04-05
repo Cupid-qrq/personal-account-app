@@ -255,18 +255,33 @@ if not st.session_state.logged_in:
 # ===== 侧边栏 =====
 with st.sidebar:
     st.markdown("### 👤 账户信息")
+    role_name_map = {
+        "admin": "管理员",
+        "viewer": "访客",
+    }
+    perm_name_map = {
+        "view_dashboard": "仪表盘",
+        "view_analytics": "分析中心",
+        "view_details": "详细账目",
+        "upload_data": "数据导入",
+        "export_data": "数据导出",
+        "manage_users": "用户管理",
+        "view_audit": "审计日志",
+    }
     
     col_user1, col_user2 = st.columns(2)
     with col_user1:
         st.write(f"**{st.session_state.username}**")
     with col_user2:
         role_badge = "🔑" if st.session_state.user_role == "admin" else "👁️"
-        st.write(f"__{role_badge} {st.session_state.user_role}__")
+        role_text = role_name_map.get(st.session_state.user_role, st.session_state.user_role)
+        st.write(f"__{role_badge} {role_text}__")
     
-    perms_display = ", ".join(st.session_state.user_perms[:3])
+    display_perms = [perm_name_map.get(p, p) for p in st.session_state.user_perms]
+    perms_display = "、".join(display_perms[:3])
     if len(st.session_state.user_perms) > 3:
-        perms_display += f"... (+{len(st.session_state.user_perms)-3})"
-    st.caption(f"权限: {perms_display}")
+        perms_display += f" 等 (+{len(st.session_state.user_perms)-3})"
+    st.caption(f"权限: {perms_display if perms_display else '无'}")
     
     if st.button("🔐 登出", use_container_width=True, key="do_logout"):
         st.session_state.logged_in = False
@@ -475,16 +490,20 @@ with tab1:
             var_name="指标",
             value_name="金额",
         )
-        fig = px.line(trend_long, x="月份", y="金额", color="指标", markers=True, line_shape="spline")
-        fig.update_layout(
-            height=350,
-            template="plotly_dark",
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0.05)",
-            font=dict(color=COLORS['text_primary']),
-            hovermode="unified",
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        try:
+            fig = px.line(trend_long, x="月份", y="金额", color="指标", markers=True, line_shape="spline")
+            fig.update_layout(
+                height=350,
+                template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0.05)",
+                font=dict(color=COLORS['text_primary']),
+                hovermode="x unified",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception:
+            st.warning("趋势图渲染失败，已降级为表格展示。")
+            st.dataframe(trend_long, use_container_width=True, hide_index=True)
     
     with col_mom:
         st.markdown("#### 环比变化")

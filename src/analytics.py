@@ -211,39 +211,43 @@ def spending_efficiency_score(df: pd.DataFrame) -> Dict[str, object]:
     total_income = float(income_df["金额"].sum()) if not income_df.empty else 100.0
     total_expense = float(expense_df["金额"].sum())
     
-    # 储蓄率 (40%)
+    # 储蓄率 (40%) - 小样本阶段采用更宽松映射
     savings_rate = (total_income - total_expense) / total_income if total_income > 0 else 0
-    savings_score = min(100, max(0, savings_rate * 100 * 0.4))
+    savings_score = min(40, max(8, 20 + savings_rate * 35))
     
     # 消费均衡度：标准差越小越好 (20%)
-    expense_df["日期"] = pd.to_datetime(expense_df["时间"]).dt.date.astype(str)
-    daily_totals = expense_df.groupby("日期")["金额"].sum()
-    
-    if len(daily_totals) > 1:
-        daily_avg = daily_totals.mean()
-        daily_std = daily_totals.std()
-        cv = daily_std / daily_avg if daily_avg > 0 else 1.0
-        balance_score = max(0, 20 * (1 - cv))
+    if expense_df.empty:
+        daily_totals = pd.Series(dtype=float)
+        balance_score = 12.0
     else:
-        balance_score = 20
+        expense_df["日期"] = pd.to_datetime(expense_df["时间"]).dt.date.astype(str)
+        daily_totals = expense_df.groupby("日期")["金额"].sum()
+        if len(daily_totals) > 3:
+            daily_avg = daily_totals.mean()
+            daily_std = daily_totals.std()
+            cv = daily_std / daily_avg if daily_avg > 0 else 1.0
+            balance_score = max(8, 20 * (1 - min(1, cv)))
+        else:
+            balance_score = 16
     
     # 分类多样性评分 (20%)
     category_count = expense_df["分类"].nunique()
-    diversity_score = min(20, category_count * 5)
+    diversity_score = min(20, 8 + category_count * 3)
     
     # 消费数据量 (20%)
     transaction_count = len(expense_df)
-    volume_score = min(20, transaction_count / 5)
+    volume_score = min(20, 8 + transaction_count * 0.8)
+    sample_bonus = 8 if transaction_count < 20 else 0
     
-    total_score = round(savings_score + balance_score + diversity_score + volume_score, 1)
+    total_score = round(min(100, savings_score + balance_score + diversity_score + volume_score + sample_bonus), 1)
     
-    if total_score >= 80:
+    if total_score >= 75:
         level = "⭐⭐⭐⭐⭐ 优秀"
         tips = ["清晰的消费计划", "良好的消费习惯", "建议保持当前节奏", "考虑增加投资比例"]
-    elif total_score >= 60:
+    elif total_score >= 55:
         level = "⭐⭐⭐⭐ 良好"
         tips = ["消费基本均衡", "建议减少某些类别支出", "可以尝试记录更多细节", "定期复盘支出"]
-    elif total_score >= 40:
+    elif total_score >= 35:
         level = "⭐⭐⭐ 中等"
         tips = ["消费波动较大", "建议制定月度预算", "关注高频支出类别", "优化支出结构"]
     else:
@@ -519,47 +523,50 @@ def expense_health_index(df: pd.DataFrame) -> Dict[str, object]:
     
     # 1. 储蓄能力 (30%)
     savings_rate = (total_income - total_expense) / total_income
-    savings_index = min(30, max(0, savings_rate * 100 * 0.3))
+    savings_index = min(30, max(8, 14 + savings_rate * 22))
     
     # 2. 消费稳定性 (25%)
     expense_df["日期"] = pd.to_datetime(expense_df["时间"]).dt.date
     daily_totals = expense_df.groupby("日期")["金额"].sum()
     
-    if len(daily_totals) > 1:
+    if len(daily_totals) > 3:
         daily_cv = daily_totals.std() / daily_totals.mean() if daily_totals.mean() > 0 else 1
-        stability_index = max(0, 25 * (1 - min(1, daily_cv)))
+        stability_index = max(8, 25 * (1 - min(1, daily_cv)))
     else:
-        stability_index = 25
+        stability_index = 18
     
-    # 3. 支出控制 (25%) - 支出不超过收入的60%
+    # 3. 支出控制 (25%) - 小样本阶段采用宽松区间
     expense_ratio = total_expense / total_income if total_income > 0 else 1
-    if expense_ratio <= 0.6:
+    if expense_ratio <= 0.7:
         control_index = 25
-    elif expense_ratio <= 0.8:
-        control_index = 15
+    elif expense_ratio <= 0.95:
+        control_index = 18
+    elif expense_ratio <= 1.1:
+        control_index = 12
     else:
-        control_index = 5
+        control_index = 8
     
     # 4. 多元化 (20%)
     category_count = expense_df["分类"].nunique()
-    diversity_index = min(20, category_count * 2)
+    diversity_index = min(20, 8 + category_count * 2.5)
+    sample_bonus = 8 if len(expense_df) < 20 else 0
     
-    total_index = round(savings_index + stability_index + control_index + diversity_index, 1)
+    total_index = round(min(100, savings_index + stability_index + control_index + diversity_index + sample_bonus), 1)
     
-    if total_index >= 80:
+    if total_index >= 75:
         grade = "🌟 优秀"
-    elif total_index >= 65:
+    elif total_index >= 58:
         grade = "✅ 良好"
-    elif total_index >= 50:
+    elif total_index >= 42:
         grade = "⚠️ 中等"
     else:
         grade = "❌ 需改进"
     
     recommendations = []
-    if savings_rate < 0.3:
-        recommendations.append("💡 储蓄率低于30%，建议审视支出结构")
-    if expense_ratio > 0.8:
-        recommendations.append("📊 支出占收入超80%，需要制定严格预算")
+    if savings_rate < 0.15:
+        recommendations.append("💡 储蓄率偏低，建议优先减少可选消费")
+    if expense_ratio > 0.95:
+        recommendations.append("📊 支出接近或超过收入，建议设定月度上限")
     if category_count < 3:
         recommendations.append("🎯 支出分类不够多元，建议更细致的分类")
     if len(recommendations) == 0:
@@ -622,11 +629,18 @@ def anomaly_detection(df: pd.DataFrame) -> Dict[str, list]:
     
     expense_df = df[df["类型"] == "支出"].copy()
     
+    if expense_df.empty:
+        return {"high_amount_anomalies": [], "rare_categories": [], "anomaly_count": 0}
+
+    # 样本较小时降低误报
+    if len(expense_df) < 12:
+        return {"high_amount_anomalies": [], "rare_categories": [], "anomaly_count": 0}
+
     # 1. 超大金额异常
     if not expense_df.empty:
         q3 = expense_df["金额"].quantile(0.75)
         iqr = expense_df["金额"].quantile(0.75) - expense_df["金额"].quantile(0.25)
-        upper_bound = q3 + 1.5 * iqr
+        upper_bound = q3 + 2.2 * iqr
         
         high_amount = expense_df[expense_df["金额"] > upper_bound][
             ["时间", "分类", "二级分类", "金额", "备注"]
@@ -638,7 +652,7 @@ def anomaly_detection(df: pd.DataFrame) -> Dict[str, list]:
     
     # 2. 低频分类
     cat_freq = expense_df["分类"].value_counts()
-    rare_cats = cat_freq[cat_freq <= 1].index.tolist()
+    rare_cats = cat_freq[cat_freq <= 1].index.tolist() if len(expense_df) >= 15 else []
     
     return {
         "high_amount_anomalies": high_anomalies,
@@ -668,20 +682,20 @@ def generate_smart_insights(df: pd.DataFrame, selected_month: str) -> Dict[str, 
     habits = consumption_habit(month_data)
     
     # 基于指标生成洞察
-    if overview["balance"] > overview["income"] * 0.5:
-        insights.append(f"🎉 本月结余充足 (¥{overview['balance']:.0f})，超过收入50%！")
+    if overview["income"] > 0 and overview["balance"] > overview["income"] * 0.3:
+        insights.append(f"🎉 本月结余表现不错 (¥{overview['balance']:.0f})，超过收入30%！")
         actions.append("考虑将超额结余进行投资或增加储蓄")
-    elif overview["balance"] < 0:
+    elif overview["income"] > 0 and overview["balance"] < -overview["income"] * 0.1:
         insights.append(f"⚠️ 本月支出超过收入，赤字 ¥{abs(overview['balance']):.0f}")
         actions.append("需要立即审视支出，优化预算")
     
-    if habits.get("avg_per_transaction", 0) > 500:
+    if habits.get("avg_per_transaction", 0) > 800:
         insights.append(f"💰 平均单笔支出较高 (¥{habits['avg_per_transaction']:.0f})，考虑分散消费")
         actions.append("尝试小额多次消费，更好地跟踪支出")
     
-    if efficiency["score"] >= 80:
+    if efficiency["score"] >= 75:
         insights.append("⭐ 消费效率评分优秀，请继续保持！")
-    elif efficiency["score"] < 40:
+    elif efficiency["score"] < 30:
         insights.append("📍 消费缺乏计划，建议制定详细预算")
         actions.append("开始记录每笔支出并定期复盘")
     
