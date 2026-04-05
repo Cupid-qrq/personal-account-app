@@ -1,19 +1,33 @@
-"""个人账本分析系统 v0.6 交互增强版。"""
+"""个人账本分析系统 v0.6 智能洞察版。
+
+核心特性：
+- 企业级认证系统 (RBAC权限管理)
+- 高级分析引擎 (年度对比、预算预测、异常检测)
+- 智能洞察生成 (AI 驱动的建议)
+- 现代化 UI/UX (深空主题、玻璃态设计)
+- 响应式设计 (桌面/平板/移动端)
+"""
 
 from pathlib import Path
+import os
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 
 from src.analytics import (
+    anomaly_detection,
+    category_budget_forecast,
     consumption_alerts,
     consumption_habit,
     daily_expense_trend,
     expense_by_category,
     expense_by_subcategory,
+    expense_health_index,
     filter_month,
     generate_budget_suggestion,
+    generate_smart_insights,
     month_over_month,
     monthly_category_share,
     monthly_insight_digest,
@@ -24,8 +38,17 @@ from src.analytics import (
     spending_efficiency_score,
     subcategory_by_parent,
     top_expenses,
+    year_over_year_comparison,
 )
-from src.auth import authenticate_user, can_upload
+from src.auth import (
+    authenticate_user,
+    can_export,
+    can_manage_users,
+    can_upload,
+    get_user_permissions,
+    PermissionManager,
+    AuditLogger,
+)
 from src.data_pipeline import (
     discover_root_csv_files,
     import_csv_bytes,
@@ -35,7 +58,7 @@ from src.data_pipeline import (
 
 # ============ Streamlit 配置 ============
 st.set_page_config(
-    page_title="个人账本 | v0.5",
+    page_title="账本系统 | v0.6 智能分析",
     page_icon="💳",
     layout="wide",
     initial_sidebar_state="expanded",

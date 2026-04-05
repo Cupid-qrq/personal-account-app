@@ -461,3 +461,237 @@ def monthly_insight_digest(df: pd.DataFrame, selected_month: str) -> Dict[str, o
         "volatility": volatility,
         "insights": insights,
     }
+
+
+# ===== v0.6 新增高级分析函数 =====
+
+def year_over_year_comparison(df: pd.DataFrame) -> Dict[str, object]:
+    """
+    年度对比分析 - 对比去年同月数据
+    返回：此月 vs 去年同月的环比诊断
+    """
+    if df.empty:
+        return {"available": False, "message": "数据不足"}
+    
+    trend = monthly_trend(df)
+    if len(trend) < 2:
+        return {"available": False, "message": "数据不足以进行年度对比"}
+    
+    # 尝试检测年度数据
+    months = sorted(trend["月份"].unique())
+    
+    comparison_data = []
+    for month in months:
+        curr_data = trend[trend["月份"] == month]
+        if not curr_data.empty:
+            comparison_data.append({
+                "month": month,
+                "expense": float(curr_data.iloc[0]["支出"]),
+                "income": float(curr_data.iloc[0]["收入"]),
+                "balance": float(curr_data.iloc[0]["结余"])
+            })
+    
+    return {
+        "available": len(comparison_data) > 0,
+        "data": comparison_data,
+        "total_months": len(comparison_data)
+    }
+
+
+def expense_health_index(df: pd.DataFrame) -> Dict[str, object]:
+    """
+    消费健康指数 (0-100) - 综合评估财务健康度
+    
+    维度：
+    - 储蓄能力 (30%)
+    - 消费稳定性 (25%)
+    - 支出控制 (25%)
+    - 多元化评分 (20%)
+    """
+    if df.empty:
+        return {"index": 0, "grade": "无数据", "recommendations": []}
+    
+    expense_df = df[df["类型"] == "支出"].copy()
+    income_df = df[df["类型"] == "收入"].copy()
+    
+    total_income = float(income_df["金额"].sum()) or 1
+    total_expense = float(expense_df["金额"].sum())
+    
+    # 1. 储蓄能力 (30%)
+    savings_rate = (total_income - total_expense) / total_income
+    savings_index = min(30, max(0, savings_rate * 100 * 0.3))
+    
+    # 2. 消费稳定性 (25%)
+    expense_df["日期"] = pd.to_datetime(expense_df["时间"]).dt.date
+    daily_totals = expense_df.groupby("日期")["金额"].sum()
+    
+    if len(daily_totals) > 1:
+        daily_cv = daily_totals.std() / daily_totals.mean() if daily_totals.mean() > 0 else 1
+        stability_index = max(0, 25 * (1 - min(1, daily_cv)))
+    else:
+        stability_index = 25
+    
+    # 3. 支出控制 (25%) - 支出不超过收入的60%
+    expense_ratio = total_expense / total_income if total_income > 0 else 1
+    if expense_ratio <= 0.6:
+        control_index = 25
+    elif expense_ratio <= 0.8:
+        control_index = 15
+    else:
+        control_index = 5
+    
+    # 4. 多元化 (20%)
+    category_count = expense_df["分类"].nunique()
+    diversity_index = min(20, category_count * 2)
+    
+    total_index = round(savings_index + stability_index + control_index + diversity_index, 1)
+    
+    if total_index >= 80:
+        grade = "🌟 优秀"
+    elif total_index >= 65:
+        grade = "✅ 良好"
+    elif total_index >= 50:
+        grade = "⚠️ 中等"
+    else:
+        grade = "❌ 需改进"
+    
+    recommendations = []
+    if savings_rate < 0.3:
+        recommendations.append("💡 储蓄率低于30%，建议审视支出结构")
+    if expense_ratio > 0.8:
+        recommendations.append("📊 支出占收入超80%，需要制定严格预算")
+    if category_count < 3:
+        recommendations.append("🎯 支出分类不够多元，建议更细致的分类")
+    if len(recommendations) == 0:
+        recommendations.append("✨ 财务状况良好，继续保持！")
+    
+    return {
+        "index": total_index,
+        "grade": grade,
+        "breakdown": {
+            "储蓄能力": round(savings_index, 1),
+            "消费稳定性": round(stability_index, 1),
+            "支出控制": round(control_index, 1),
+            "多元化": round(diversity_index, 1)
+        },
+        "recommendations": recommendations
+    }
+
+
+def category_budget_forecast(df: pd.DataFrame, months_ahead: int = 3) -> Dict[str, object]:
+    """
+    分类预算预估 - 基于历史数据预估未来 N 个月的分类预算
+    """
+    if df.empty:
+        return {"forecast": {}, "method": "数据不足"}
+    
+    cat_trend = category_trend(df)
+    if cat_trend.empty:
+        return {"forecast": {}, "method": "无支出数据"}
+    
+    # 按分类计算平均月度支出
+    expense_df = df[df["类型"] == "支出"].copy()
+    
+    category_avg = expense_df.groupby("分类")["金额"].agg(["mean", "std", "count"]).reset_index()
+    category_avg.columns = ["分类", "平均金额", "波动", "笔数"]
+    
+    forecast = {}
+    for _, row in category_avg.iterrows():
+        category = row["分类"]
+        avg = float(row["平均金额"])
+        std = float(row["波动"]) or 0
+        forecast[category] = {
+            "预估金额": round(avg, 2),
+            "波动范围": f"¥{round(avg - std, 2)} - ¥{round(avg + std, 2)}",
+            "平均笔数": int(row["笔数"])
+        }
+    
+    return {
+        "forecast": dict(sorted(forecast.items(), key=lambda x: x[1]["预估金额"], reverse=True)),
+        "method": "基于历史平均值",
+        "months_scope": len(df["月份"].unique()) if "月份" in df.columns else 0
+    }
+
+
+def anomaly_detection(df: pd.DataFrame) -> Dict[str, list]:
+    """
+    异常检测 - 识别异常交易（超大金额或低频分类）
+    """
+    if df.empty:
+        return {"high_amount_anomalies": [], "rare_categories": []}
+    
+    expense_df = df[df["类型"] == "支出"].copy()
+    
+    # 1. 超大金额异常
+    if not expense_df.empty:
+        q3 = expense_df["金额"].quantile(0.75)
+        iqr = expense_df["金额"].quantile(0.75) - expense_df["金额"].quantile(0.25)
+        upper_bound = q3 + 1.5 * iqr
+        
+        high_amount = expense_df[expense_df["金额"] > upper_bound][
+            ["时间", "分类", "二级分类", "金额", "备注"]
+        ].sort_values("金额", ascending=False).head(10)
+        
+        high_anomalies = high_amount.to_dict("records") if not high_amount.empty else []
+    else:
+        high_anomalies = []
+    
+    # 2. 低频分类
+    cat_freq = expense_df["分类"].value_counts()
+    rare_cats = cat_freq[cat_freq <= 1].index.tolist()
+    
+    return {
+        "high_amount_anomalies": high_anomalies,
+        "rare_categories": rare_cats,
+        "anomaly_count": len(high_anomalies) + len(rare_cats)
+    }
+
+
+def generate_smart_insights(df: pd.DataFrame, selected_month: str) -> Dict[str, object]:
+    """
+    智能洞察生成器 - 综合多维数据生成文案建议
+    """
+    if df.empty:
+        return {"insights": ["暂无数据"], "actions": []}
+    
+    month_data = filter_month(df, selected_month)
+    if month_data.empty:
+        return {"insights": ["该月份数据不足"], "actions": []}
+    
+    insights = []
+    actions = []
+    
+    # 获取各项指标
+    overview = monthly_overview(month_data)
+    efficiency = spending_efficiency_score(month_data)
+    health = expense_health_index(df)
+    habits = consumption_habit(month_data)
+    
+    # 基于指标生成洞察
+    if overview["balance"] > overview["income"] * 0.5:
+        insights.append(f"🎉 本月结余充足 (¥{overview['balance']:.0f})，超过收入50%！")
+        actions.append("考虑将超额结余进行投资或增加储蓄")
+    elif overview["balance"] < 0:
+        insights.append(f"⚠️ 本月支出超过收入，赤字 ¥{abs(overview['balance']):.0f}")
+        actions.append("需要立即审视支出，优化预算")
+    
+    if habits.get("avg_per_transaction", 0) > 500:
+        insights.append(f"💰 平均单笔支出较高 (¥{habits['avg_per_transaction']:.0f})，考虑分散消费")
+        actions.append("尝试小额多次消费，更好地跟踪支出")
+    
+    if efficiency["score"] >= 80:
+        insights.append("⭐ 消费效率评分优秀，请继续保持！")
+    elif efficiency["score"] < 40:
+        insights.append("📍 消费缺乏计划，建议制定详细预算")
+        actions.append("开始记录每笔支出并定期复盘")
+    
+    health_rec = health["recommendations"][0] if health["recommendations"] else ""
+    if health_rec:
+        insights.append(health_rec)
+    
+    return {
+        "insights": insights[:5],  # 最多5条
+        "actions": actions[:5],    # 最多5条行动项
+        "confidence": "高" if len(insights) >= 3 else "中",
+        "generated_at": str(pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"))
+    }
