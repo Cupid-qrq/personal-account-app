@@ -5,7 +5,12 @@ v0.6 中央配置管理
 """
 
 import os
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+except Exception:
+    def load_dotenv(*args, **kwargs):
+        return False
 
 # 加载环境变量
 load_dotenv()
@@ -75,8 +80,8 @@ COLORS = {
     "accent_purple": "#b57edc",      # 特殊色 - 紫色
     
     # 边框与阴影
-    "border_light": "#rgba(123, 210, 255, 0.2)",
-    "border_normal": "#rgba(58, 185, 255, 0.4)",
+    "border_light": "rgba(123, 210, 255, 0.2)",
+    "border_normal": "rgba(58, 185, 255, 0.4)",
     "shadow_soft": "0 8px 22px rgba(5, 14, 30, 0.35)",
     "shadow_hard": "0 18px 32px rgba(18, 34, 69, 0.55)",
 }
