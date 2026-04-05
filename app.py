@@ -585,7 +585,10 @@ with tab4:
             st.markdown("**超大金额异常**")
             if anomalies["high_amount_anomalies"]:
                 for anom in anomalies["high_amount_anomalies"][:5]:
-                    st.warning(f"⚠️ {anom['日期']} | {anom['分类']} | **¥{anom['金额']:.0f}**")
+                    anom_date = anom.get("日期") or anom.get("时间") or "未知日期"
+                    anom_cat = anom.get("分类", "未分类")
+                    anom_amount = float(anom.get("金额", 0.0))
+                    st.warning(f"⚠️ {anom_date} | {anom_cat} | **¥{anom_amount:.0f}**")
             else:
                 st.success("✓ 无异常")
         

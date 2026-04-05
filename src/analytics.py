@@ -638,12 +638,13 @@ def anomaly_detection(df: pd.DataFrame) -> Dict[str, list]:
 
     # 1. 超大金额异常
     if not expense_df.empty:
+        expense_df["日期"] = pd.to_datetime(expense_df["时间"], errors="coerce").dt.date.astype(str)
         q3 = expense_df["金额"].quantile(0.75)
         iqr = expense_df["金额"].quantile(0.75) - expense_df["金额"].quantile(0.25)
         upper_bound = q3 + 2.2 * iqr
         
         high_amount = expense_df[expense_df["金额"] > upper_bound][
-            ["时间", "分类", "二级分类", "金额", "备注"]
+            ["日期", "分类", "二级分类", "金额", "备注"]
         ].sort_values("金额", ascending=False).head(10)
         
         high_anomalies = high_amount.to_dict("records") if not high_amount.empty else []
