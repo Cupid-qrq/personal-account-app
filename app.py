@@ -600,16 +600,31 @@ with detail_tab3:
     detail_df = prepare_detail_table(month_df)
     if not detail_df.empty:
         display_df = detail_df.copy()
-        display_df["金额"] = display_df["金额"].apply(lambda x: f"¥{x:.2f}")
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        display_df["金额"] = pd.to_numeric(display_df["金额"], errors="coerce").fillna(0.0)
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "金额": st.column_config.NumberColumn("金额", format="¥ %.2f"),
+            },
+        )
 
 with detail_tab4:
     budget_df = generate_budget_suggestion(month_df)
     if not budget_df.empty:
         display_df = budget_df.copy()
         for col_name in ["本月支出", "建议下月预算"]:
-            display_df[col_name] = display_df[col_name].apply(lambda x: f"¥{x:.2f}")
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+            display_df[col_name] = pd.to_numeric(display_df[col_name], errors="coerce").fillna(0.0)
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "本月支出": st.column_config.NumberColumn("本月支出", format="¥ %.2f"),
+                "建议下月预算": st.column_config.NumberColumn("建议下月预算", format="¥ %.2f"),
+            },
+        )
 
 # 页脚
 st.markdown("---")
