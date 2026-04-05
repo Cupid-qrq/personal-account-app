@@ -15,6 +15,8 @@ from .config import (
     INCOME_CATEGORIES,
     REQUIRED_COLUMNS,
 )
+from .data_contract import CANONICAL_COLUMNS, SQLITE_DB_SUFFIX
+from .sqlite_store import bootstrap_from_csv, export_snapshot, load_records, save_records
 
 
 def _read_csv_with_fallback(content: bytes) -> pd.DataFrame:
@@ -131,10 +133,9 @@ def save_month_archives(df: pd.DataFrame, archive_dir: Path) -> List[str]:
 
 def save_master(df: pd.DataFrame, master_file: Path) -> int:
     master_file.parent.mkdir(parents=True, exist_ok=True)
-    merged = _merge_with_existing_csv(master_file, df)
-    if "时间" in merged.columns:
-        merged = merged.sort_values("时间", na_position="last")
-    merged.to_csv(master_file, index=False, encoding="utf-8-sig")
+    db_file = master_file.with_suffix(SQLITE_DB_SUFFIX)
+    merged = save_records(db_file, df)
+    export_snapshot(merged, master_file)
     return len(merged)
 
 
@@ -177,11 +178,15 @@ def discover_root_csv_files(project_root: Path) -> List[Path]:
 
 
 def load_master(master_file: Path) -> pd.DataFrame:
-    if not master_file.exists():
-        columns = REQUIRED_COLUMNS + ["日期", "月份", "年份"]
-        return pd.DataFrame(columns=columns)
+    db_file = master_file.with_suffix(SQLITE_DB_SUFFIX)
 
-    df = pd.read_csv(master_file)
-    if "时间" in df.columns:
-        df["时间"] = pd.to_datetime(df["时间"], errors="coerce")
-    return df
+    if db_file.exists():
+        return load_records(db_file)
+
+    if master_file.exists():
+        frame = pd.read_csv(master_file)
+        if not frame.empty:
+            bootstrap_from_csv(master_file, db_file)
+            return load_records(db_file)
+
+    return pd.DataFrame(columns=CANONICAL_COLUMNS)

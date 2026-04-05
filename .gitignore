@@ -31,4 +31,5 @@ Thumbs.db
 
 # Runtime temp data
 data/processed/*.tmp
+data/processed/*.sqlite3
 *.tmp

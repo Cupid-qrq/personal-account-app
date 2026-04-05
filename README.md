@@ -7,6 +7,7 @@ A Streamlit-based personal ledger system for importing CSV bills, cleaning and a
 ## Highlights
 
 - CSV import with automatic normalization and de-duplication
+- SQLite-backed master table with CSV snapshot compatibility
 - Role-based access (admin upload, viewer read-only)
 - Monthly dashboard with trend, structure, rhythm, and insight panels
 - Risk alerts for unusual spending patterns
@@ -17,9 +18,9 @@ A Streamlit-based personal ledger system for importing CSV bills, cleaning and a
 
 1. Data Pipeline
 - Import single CSV or batch scan root CSV files
-- Normalize schema and amount/type fields
+- Normalize schema and amount/type fields with a shared data contract
 - Archive by month: data/archive/YYYY-MM.csv
-- Merge to master table: data/processed/ledger_master.csv
+- Persist master data in SQLite and export CSV snapshots for compatibility
 
 2. Analytics
 - Monthly income/expense/balance overview
@@ -63,10 +64,13 @@ Open: http://localhost:8501
 personal-account-app/
 ├── app.py
 ├── src/
+│   ├── data_contract.py
 │   ├── auth.py
 │   ├── config.py
 │   ├── data_pipeline.py
-│   └── analytics.py
+│   ├── analytics.py
+│   ├── sqlite_store.py
+│   └── ui_app.py
 ├── data/
 │   ├── archive/
 │   └── processed/
@@ -87,7 +91,8 @@ Use Streamlit Cloud:
 ## Data Notes
 
 - Monthly archives are generated automatically after import
-- Master table is ID-based deduplicated
+- Master table is SQLite-backed and ID-based deduplicated
+- CSV snapshots remain in `data/processed/ledger_master.csv` for compatibility
 - Input encoding fallback: UTF-8-SIG / UTF-8 / GBK
 
 ## License

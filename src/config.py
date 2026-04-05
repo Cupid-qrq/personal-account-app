@@ -15,27 +15,7 @@ except Exception:
 # 加载环境变量
 load_dotenv()
 
-# ===== 数据列定义 =====
-REQUIRED_COLUMNS = [
-    "ID",
-    "时间",
-    "分类",
-    "二级分类",
-    "类型",
-    "金额",
-    "币种",
-    "账户1",
-    "账户2",
-    "备注",
-    "已报销",
-    "手续费",
-    "优惠券",
-    "记账者",
-    "账单标记",
-    "标签",
-    "账单图片",
-    "关联账单",
-]
+from .data_contract import REQUIRED_COLUMNS
 
 # ===== 分类系统 =====
 EXPENSE_CATEGORY_MAP = {
