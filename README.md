@@ -23,6 +23,10 @@ A Streamlit-based ledger system for CSV import, monthly analytics, and lightweig
 
 Streamlit Cloud (recommended):
 
+Live URL: https://my-account.streamlit.app/
+
+If `LEDGER_USERS_JSON` is missing, the app falls back to public read-only mode. Configure `LEDGER_USERS_JSON` in Streamlit app Secrets to enable authenticated upload/login.
+
 1. Push repository to GitHub.
 2. Create an app in Streamlit Cloud.
 3. Configure `LEDGER_USERS_JSON` in app Secrets.

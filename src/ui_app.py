@@ -62,6 +62,7 @@ from src.auth import (
     get_auth_status_message,
     get_user_permissions,
     is_auth_configured,
+    PermissionManager,
 )
 from src.data_pipeline import (
     discover_root_csv_files,
@@ -212,9 +213,19 @@ if "logged_in" not in st.session_state:
     st.session_state.username = None
     st.session_state.user_role = None
     st.session_state.user_perms = []
+if "auth_mode" not in st.session_state:
+    st.session_state.auth_mode = "configured"
 
 AUTH_READY = is_auth_configured()
 AUTH_STATUS = get_auth_status_message().strip()
+
+if not AUTH_READY:
+    # 无认证配置时，自动进入只读访客模式，避免云端页面不可访问。
+    st.session_state.logged_in = True
+    st.session_state.username = "guest"
+    st.session_state.user_role = "viewer"
+    st.session_state.user_perms = PermissionManager.get_permissions("viewer")
+    st.session_state.auth_mode = "readonly"
 
 
 def login_page():
@@ -250,6 +261,7 @@ def login_page():
                     st.session_state.username = username
                     st.session_state.user_role = role
                     st.session_state.user_perms = get_user_permissions(username)
+                    st.session_state.auth_mode = "configured"
                     st.success(f"🎉 欢迎, {user_name}!")
                     st.rerun()
                 else:
@@ -258,7 +270,7 @@ def login_page():
         st.caption("支持角色：管理员(admin) / 编辑者(editor) / 访客(viewer)")
 
 
-if not st.session_state.logged_in:
+if AUTH_READY and not st.session_state.logged_in:
     login_page()
     st.stop()
 
@@ -283,11 +295,14 @@ with st.sidebar:
         role_text = role_name_map.get(st.session_state.user_role, st.session_state.user_role)
         st.write(f"__{role_badge} {role_text}__")
 
-    if st.button("🔐 登出", use_container_width=True, key="do_logout"):
+    if st.session_state.get("auth_mode") == "readonly":
+        st.info("🔓 当前为公开只读模式（未配置认证）。")
+    elif st.button("🔐 登出", use_container_width=True, key="do_logout"):
         st.session_state.logged_in = False
         st.session_state.username = None
         st.session_state.user_role = None
         st.session_state.user_perms = []
+        st.session_state.auth_mode = "configured"
         st.rerun()
 
     st.markdown("---")
@@ -358,6 +373,9 @@ st.markdown(f"""
     <p class="hero-sub">智能消费洞察 · 企业级分析 · {VERSION_TAG}</p>
 </div>
 """, unsafe_allow_html=True)
+
+if st.session_state.get("auth_mode") == "readonly":
+    st.info("当前运行在公开只读模式。若需登录上传，请在 Streamlit Secrets 配置 LEDGER_USERS_JSON。")
 
 months = sorted(master_df["月份"].dropna().unique().tolist())
 if not months:
