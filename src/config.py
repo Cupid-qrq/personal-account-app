@@ -32,9 +32,9 @@ DEFAULT_EXPENSE_PRIMARY = "其它"
 DEFAULT_EXPENSE_SECONDARY = "未分类"
 DEFAULT_INCOME_PRIMARY = "其它"
 
-# ===== v0.6 新增：应用元数据 =====
+# ===== 应用元数据 =====
 APP_NAME = "账本管理系统"
-APP_VERSION = "v0.6"
+APP_VERSION = "v0.8"
 APP_TITLE = f"{APP_NAME} | {APP_VERSION} - 智能财务分析"
 APP_DESCRIPTION = "企业级个人财务管理与AI洞察平台"
 

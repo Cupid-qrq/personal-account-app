@@ -1,20 +1,14 @@
-"""
-认证模块 v0.6 - 企业级多用户登录与权限管理系统
+"""认证模块 v0.8：安全优先的用户登录与 RBAC 权限管理。"""
 
-支持：
-  - 环境变量配置用户凭证
-  - 密码加密存储（SHA256 + Salt）
-  - 登录审计日志
-  - 细粒度权限控制 (RBAC)
-  - 会话安全性增强
-"""
-
-import os
 import hashlib
 import json
+import os
 from datetime import datetime
-from typing import Dict, Optional, Tuple, List
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+
+AUTH_ENV_KEY = "LEDGER_USERS_JSON"
 
 
 class PermissionManager:
@@ -56,10 +50,10 @@ class PermissionManager:
 
 
 class UserAuthenticator:
-    """用户认证器 - 处理密码加密解密和用户验证"""
+    """用户认证器 - 处理密码加密解密和用户验证。"""
     
     @staticmethod
-    def hash_password(password: str, salt: str = None) -> Tuple[str, str]:
+    def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:
         """
         使用 SHA256 + Salt 加密密码
         返回：(加密密码, salt)
@@ -78,43 +72,89 @@ class UserAuthenticator:
         return computed == hashed
     
     @staticmethod
-    def load_users_from_env() -> Dict[str, dict]:
+    def _normalize_user_record(username: str, user: Dict[str, object]) -> Dict[str, str]:
+        role = str(user.get("role", "viewer")).strip() or "viewer"
+        if role not in PermissionManager.ROLES:
+            raise ValueError(f"用户 {username} 的角色无效: {role}")
+
+        record: Dict[str, str] = {
+            "name": str(user.get("name", username)).strip() or username,
+            "role": role,
+            "email": str(user.get("email", "")).strip(),
+        }
+
+        password_hash = str(user.get("password_hash", "")).strip()
+        password_salt = str(user.get("password_salt", "")).strip()
+        password_plain = str(user.get("password", "")).strip()
+
+        if password_hash and password_salt:
+            record["password_hash"] = password_hash
+            record["password_salt"] = password_salt
+            return record
+
+        if password_plain:
+            hashed, salt = UserAuthenticator.hash_password(password_plain)
+            record["password_hash"] = hashed
+            record["password_salt"] = salt
+            return record
+
+        raise ValueError(f"用户 {username} 缺少密码字段（password 或 password_hash+password_salt）")
+
+    @staticmethod
+    def load_users_from_env() -> Tuple[Dict[str, dict], str]:
         """
         从环境变量加载用户配置
         格式：LEDGER_USERS_JSON='{"cupid":{"password":"...","name":"...","role":"admin"},...}'
         """
-        users_env = os.getenv("LEDGER_USERS_JSON", "")
-        
-        if users_env:
-            try:
-                return json.loads(users_env)
-            except json.JSONDecodeError:
-                pass
-        
-        # 回退到默认配置（开发环境）
-        return {
-            "cupid": {
-                "password_hash": hashlib.sha256("demonCupid2026default".encode()).hexdigest(),
-                "password_salt": "default",
-                "name": "我（Cupid）",
-                "role": "admin",
-                "email": "cupid@example.com",
-            },
-            "dad": {
-                "password_hash": hashlib.sha256("dad2026default".encode()).hexdigest(),
-                "password_salt": "default",
-                "name": "爸爸",
-                "role": "viewer",
-                "email": "dad@example.com",
-            },
-            "mom": {
-                "password_hash": hashlib.sha256("mom2026default".encode()).hexdigest(),
-                "password_salt": "default",
-                "name": "妈妈",
-                "role": "viewer",
-                "email": "mom@example.com",
-            },
-        }
+        users_env = os.getenv(AUTH_ENV_KEY, "").strip()
+
+        if not users_env:
+            return {}, f"未检测到 {AUTH_ENV_KEY}，登录已禁用。请先在环境变量或 Streamlit secrets 中配置用户。"
+
+        try:
+            raw_users = json.loads(users_env)
+        except json.JSONDecodeError as exc:
+            return {}, f"{AUTH_ENV_KEY} 不是合法 JSON: {exc.msg}"
+
+        if not isinstance(raw_users, dict) or not raw_users:
+            return {}, f"{AUTH_ENV_KEY} 必须是非空对象。"
+
+        normalized: Dict[str, dict] = {}
+        try:
+            for username, user_data in raw_users.items():
+                uname = str(username).strip()
+                if not uname:
+                    raise ValueError("用户名不能为空")
+                if not isinstance(user_data, dict):
+                    raise ValueError(f"用户 {uname} 的配置必须是对象")
+                normalized[uname] = UserAuthenticator._normalize_user_record(uname, user_data)
+        except ValueError as exc:
+            return {}, f"{AUTH_ENV_KEY} 配置错误: {exc}"
+
+        return normalized, "认证配置已加载。"
+
+
+def get_auth_env_template() -> str:
+    """返回示例认证配置模板（用于 UI 提示，不包含真实凭证）。"""
+    template = {
+        "admin_user": {
+            "password": "ChangeMe_2026!",
+            "name": "管理员",
+            "role": "admin",
+            "email": "admin@example.com",
+        },
+        "editor_user": {
+            "password": "ChangeMe_2026!",
+            "name": "编辑者",
+            "role": "editor",
+        },
+        "viewer_user": {
+            "password": "ChangeMe_2026!",
+            "name": "访客",
+            "role": "viewer",
+        },
+    }
+    return json.dumps(template, ensure_ascii=False, indent=2)
 
 
 class AuditLogger:
@@ -157,7 +197,15 @@ class AuditLogger:
 
 
 # ===== 主认证接口 =====
-USERS_DB = UserAuthenticator.load_users_from_env()
+USERS_DB, AUTH_STATUS_MESSAGE = UserAuthenticator.load_users_from_env()
+
+
+def is_auth_configured() -> bool:
+    return bool(USERS_DB)
+
+
+def get_auth_status_message() -> str:
+    return AUTH_STATUS_MESSAGE
 
 
 def authenticate_user(username: str, password: str) -> Tuple[bool, str, str]:
@@ -166,20 +214,16 @@ def authenticate_user(username: str, password: str) -> Tuple[bool, str, str]:
     
     返回：(是否成功, 用户昵称, 用户角色)
     """
+    if not is_auth_configured():
+        return False, "", ""
+
     if username not in USERS_DB:
         AuditLogger.log_event("login_failed", username, details="用户不存在")
         return False, "", ""
     
     user = USERS_DB[username]
     
-    # 尝试验证（支持新旧密码格式）
-    if "password" in user:
-        # 旧格式直接比对
-        if user["password"] == password:
-            AuditLogger.log_event("login_success", username)
-            return True, user["name"], user["role"]
-    elif "password_hash" in user and "password_salt" in user:
-        # 新格式使用 hash 验证
+    if "password_hash" in user and "password_salt" in user:
         if UserAuthenticator.verify_password(password, user["password_hash"], user["password_salt"]):
             AuditLogger.log_event("login_success", username)
             return True, user["name"], user["role"]

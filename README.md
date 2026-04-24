@@ -6,8 +6,10 @@ A Streamlit-based ledger system for CSV import, monthly analytics, and lightweig
 
 - CSV import with normalization and ID-based de-duplication
 - SQLite-backed master data with CSV snapshot compatibility
-- Role-based access (admin upload, viewer read-only)
+- Role-based access (admin/editor/viewer)
+- Secure login based on `LEDGER_USERS_JSON` (no built-in default credentials)
 - Monthly dashboard for trend, structure, rhythm, and anomaly insights
+- Futuristic but clean dashboard UI (v0.8)
 
 ## Tech Stack
 
@@ -23,8 +25,9 @@ Streamlit Cloud (recommended):
 
 1. Push repository to GitHub.
 2. Create an app in Streamlit Cloud.
-3. Set the main file path to app.py.
-4. Deploy.
+3. Configure `LEDGER_USERS_JSON` in app Secrets.
+4. Set the main file path to app.py.
+5. Deploy.
 
 ## Quick Start
 
@@ -34,6 +37,7 @@ cd personal-account-app
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+$env:LEDGER_USERS_JSON='{"admin":{"password":"ChangeMe_2026!","name":"Admin","role":"admin"}}'
 streamlit run app.py
 ```
 

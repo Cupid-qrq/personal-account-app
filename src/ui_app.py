@@ -1,5 +1,5 @@
 """
-账本管理系统 v0.7 - 企业级财务分析平台
+账本管理系统 v0.8 - 企业级财务分析平台
 
 🚀 核心特性：
   ✅ RBAC 企业级权限系统 (7权限细粒度)
@@ -25,12 +25,10 @@
 """
 
 from pathlib import Path
-import os
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-import numpy as np
 from datetime import datetime
 
 from src.analytics import (
@@ -59,11 +57,11 @@ from src.analytics import (
 )
 from src.auth import (
     authenticate_user,
-    can_export,
-    can_manage_users,
     can_upload,
+    get_auth_env_template,
+    get_auth_status_message,
     get_user_permissions,
-    PermissionManager,
+    is_auth_configured,
 )
 from src.data_pipeline import (
     discover_root_csv_files,
@@ -71,14 +69,16 @@ from src.data_pipeline import (
     import_csv_file,
     load_master,
 )
-from src.config import COLORS, FEATURES
+from src.config import APP_NAME, APP_VERSION, COLORS, FEATURES
 
 st.set_page_config(
-    page_title="账本系统 v0.7 | SQLite 财务平台",
+    page_title=f"{APP_NAME} {APP_VERSION} | SQLite 财务平台",
     page_icon="💳",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+VERSION_TAG = APP_VERSION
 
 st.markdown(f"""
 <style>
@@ -89,20 +89,49 @@ st.markdown(f"""
     header[data-testid="stHeader"] {{ display: none !important; }}
 
     .stApp {{
-        background: linear-gradient(135deg, {COLORS['bg_primary']} 0%, {COLORS['bg_secondary']} 50%, {COLORS['bg_primary']} 100%);
+        background:
+            radial-gradient(circle at 12% 8%, rgba(58, 185, 255, 0.16), transparent 36%),
+            radial-gradient(circle at 88% 14%, rgba(181, 126, 220, 0.14), transparent 38%),
+            linear-gradient(135deg, {COLORS['bg_primary']} 0%, {COLORS['bg_secondary']} 45%, {COLORS['bg_primary']} 100%);
         background-attachment: fixed;
         color: {COLORS['text_primary']};
     }}
 
     [data-testid="stMainBlockContainer"] {{
         background-color: transparent;
+        max-width: 1280px;
+        padding-top: 1.2rem;
     }}
 
-    [data-testid="stVerticalBlock"] {{
-        background: rgba(15, 26, 46, 0.4);
-        backdrop-filter: blur(10px);
-        border-radius: 12px;
-        border: 1px solid rgba(58, 185, 255, 0.1);
+    .hero-shell {{
+        border: 1px solid rgba(58, 185, 255, 0.24);
+        border-radius: 18px;
+        padding: 18px 24px;
+        margin: 4px 0 18px 0;
+        background: linear-gradient(120deg, rgba(15, 26, 46, 0.82) 0%, rgba(10, 20, 31, 0.72) 100%);
+        box-shadow: 0 14px 36px rgba(6, 17, 29, 0.42);
+    }}
+
+    .hero-title {{
+        font-size: 1.78rem;
+        font-weight: 700;
+        line-height: 1.2;
+        letter-spacing: 0.4px;
+        color: {COLORS['text_primary']};
+        margin: 0;
+    }}
+
+    .hero-sub {{
+        margin-top: 8px;
+        color: {COLORS['text_secondary']};
+        font-size: 0.95rem;
+    }}
+
+    .section-title {{
+        font-size: 1.04rem;
+        font-weight: 650;
+        color: {COLORS['text_primary']};
+        margin: 8px 0 10px 0;
     }}
 
     .stTabs [data-baseweb="tab-list"] {{
@@ -124,14 +153,21 @@ st.markdown(f"""
         background: linear-gradient(135deg, {COLORS['accent_blue']}, {COLORS['accent_purple']});
         color: {COLORS['text_primary']};
         border: 1px solid {COLORS['accent_blue']};
-        border-radius: 8px;
+        border-radius: 10px;
         transition: all 0.3s ease;
+        font-weight: 600;
     }}
 
     .stButton > button:hover {{
         background: linear-gradient(135deg, {COLORS['accent_purple']}, {COLORS['accent_blue']});
         box-shadow: 0 0 20px rgba(58, 185, 255, 0.5);
         transform: translateY(-2px);
+    }}
+
+    .stButton > button:disabled {{
+        opacity: 0.55;
+        transform: none;
+        box-shadow: none;
     }}
 
     .stTextInput > div > div > input,
@@ -145,7 +181,7 @@ st.markdown(f"""
     [data-testid="stMetric"] {{
         background: rgba(15, 26, 46, 0.5);
         border: 1px solid {COLORS['border_light']};
-        border-radius: 12px;
+        border-radius: 14px;
         padding: 16px;
         transition: all 0.3s ease;
     }}
@@ -164,15 +200,6 @@ st.markdown(f"""
         background: rgba(6, 17, 29, 0.8);
         border-right: 1px solid {COLORS['border_light']};
     }}
-
-    @keyframes fadeInUp {{
-        from {{ opacity: 0; transform: translateY(20px); }}
-        to {{ opacity: 1; transform: translateY(0); }}
-    }}
-
-    .metric-card {{
-        animation: fadeInUp 0.6s ease;
-    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -186,28 +213,34 @@ if "logged_in" not in st.session_state:
     st.session_state.user_role = None
     st.session_state.user_perms = []
 
+AUTH_READY = is_auth_configured()
+AUTH_STATUS = get_auth_status_message().strip()
+
 
 def login_page():
     """现代化登录页面"""
-    col1, col2, col3 = st.columns([1, 1.2, 1])
+    col1, col2, col3 = st.columns([1, 1.25, 1])
 
     with col2:
-        st.markdown("---")
         st.markdown(f"""
-        <div style='text-align: center; font-size: 48px; margin: 30px 0;'>💳</div>
-        <h1 style='text-align: center; font-size: 36px; letter-spacing: 1px;'>账本系统</h1>
-        <h2 style='text-align: center; font-size: 18px; opacity: 0.7; font-weight: 400;'>v0.7 | SQLite 财务分析平台</h2>
-        <p style='text-align: center; color: {COLORS['text_secondary']}; margin-top: 24px;'>
-            企业级权限管理 • 智能财务洞察 • 实时异常检测
-        </p>
+        <div class="hero-shell" style="text-align: center;">
+            <div style="font-size: 42px; margin: 4px 0 8px 0;">💳</div>
+            <h1 class="hero-title">{APP_NAME}</h1>
+            <div class="hero-sub">{VERSION_TAG} | SQLite 财务分析平台</div>
+            <div class="hero-sub">企业级权限管理 · 智能财务洞察 · 实时异常检测</div>
+        </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("---")
+        if not AUTH_READY:
+            st.error(f"🔒 {AUTH_STATUS}")
+            st.caption("请在环境变量或 Streamlit Cloud Secrets 中配置 `LEDGER_USERS_JSON` 后再登录。")
+            with st.expander("查看 `LEDGER_USERS_JSON` 配置模板"):
+                st.code(get_auth_env_template(), language="json")
 
         username = st.text_input("👤 用户名", placeholder="输入用户名", key="login_user")
         password = st.text_input("🔑 密码", type="password", placeholder="输入密码", key="login_pass")
 
-        if st.button("🚀 登录", use_container_width=True, key="do_login"):
+        if st.button("🚀 登录", use_container_width=True, key="do_login", disabled=not AUTH_READY):
             if not username or not password:
                 st.error("❌ 用户名和密码不能为空")
             else:
@@ -218,20 +251,11 @@ def login_page():
                     st.session_state.user_role = role
                     st.session_state.user_perms = get_user_permissions(username)
                     st.success(f"🎉 欢迎, {user_name}!")
-                    st.balloons()
-                    import time
-                    time.sleep(1.2)
                     st.rerun()
                 else:
                     st.error("❌ 用户名或密码错误")
 
-        st.markdown("---")
-        with st.expander("📋 演示账号"):
-            st.code("""
-cupid / demonCupid2026  (🔑 管理员 - 所有权限)
-dad / dad2026          (👁️ 访客 - 仅查看)
-mom / mom2026          (👁️ 访客 - 仅查看)
-            """)
+        st.caption("支持角色：管理员(admin) / 编辑者(editor) / 访客(viewer)")
 
 
 if not st.session_state.logged_in:
@@ -242,14 +266,20 @@ with st.sidebar:
     st.markdown("### 👤 账户信息")
     role_name_map = {
         "admin": "管理员",
+        "editor": "编辑者",
         "viewer": "访客",
+    }
+    role_icon_map = {
+        "admin": "🔑",
+        "editor": "✍️",
+        "viewer": "👁️",
     }
 
     col_user1, col_user2 = st.columns(2)
     with col_user1:
         st.write(f"**{st.session_state.username}**")
     with col_user2:
-        role_badge = "🔑" if st.session_state.user_role == "admin" else "👁️"
+        role_badge = role_icon_map.get(st.session_state.user_role, "👤")
         role_text = role_name_map.get(st.session_state.user_role, st.session_state.user_role)
         st.write(f"__{role_badge} {role_text}__")
 
@@ -302,7 +332,7 @@ with st.sidebar:
                 except Exception as e:
                     st.error(f"❌ 批量导入失败: {str(e)[:80]}")
     else:
-        st.warning("💼 你是访客账户，仅可查看数据。")
+        st.warning("💼 当前角色无上传权限，已进入只读分析模式。")
 
     st.markdown("---")
     st.markdown("### 🔗 快速链接")
@@ -322,10 +352,12 @@ if master_df.empty:
     st.warning("⚠️ 暂无数据，请上传账单文件开始使用")
     st.stop()
 
-st.markdown("""
-# 💳 财务分析驾驶舱
-**智能消费洞察 · 企业级分析 · v0.7**
-""")
+st.markdown(f"""
+<div class="hero-shell">
+    <p class="hero-title">💳 财务分析驾驶舱</p>
+    <p class="hero-sub">智能消费洞察 · 企业级分析 · {VERSION_TAG}</p>
+</div>
+""", unsafe_allow_html=True)
 
 months = sorted(master_df["月份"].dropna().unique().tolist())
 if not months:
@@ -350,7 +382,7 @@ metrics = [
     ("💸 支出", f"¥{overview['expense']:.0f}", COLORS['accent_red']),
     ("📊 结余", f"¥{overview['balance']:.0f}", COLORS['accent_blue']),
     ("📋 笔数", f"{overview['records']}", COLORS['accent_orange']),
-    ("v0.7 ✨", "已就绪", COLORS['accent_purple']),
+    (f"{VERSION_TAG} ✨", "已就绪", COLORS['accent_purple']),
 ]
 
 for col, (label, value, _) in zip(cols, metrics):
@@ -508,7 +540,7 @@ with tab3:
         st.info("📬 无足够数据生成热力图")
 
 with tab4:
-    st.markdown("#### 🚨 异常检测 (v0.6+ 新增)")
+    st.markdown("#### 🚨 异常检测 (v0.8 优化)")
 
     if FEATURES["anomaly_detection"]:
         anomalies = anomaly_detection(month_df)
@@ -604,7 +636,7 @@ with detail_tab4:
 st.markdown("---")
 st.markdown(f"""
 <div style='text-align: center; opacity: 0.6; font-size: 12px; margin-top: 30px;'>
-    <p>© 2026 账本管理系统 v0.7 | SQLite 财务分析平台<br>
+    <p>© 2026 账本管理系统 {VERSION_TAG} | SQLite 财务分析平台<br>
     最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')} | 
     用户: {st.session_state.username} | 
     角色: {st.session_state.user_role}</p>
