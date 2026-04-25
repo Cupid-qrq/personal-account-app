@@ -8,7 +8,6 @@ level = "warning"
 
 [browser]
 gatherUsageStats = false
-serverAddress = "localhost"
 
 [theme]
 # 使用自定义主题，避免用户手动切换
