@@ -27,6 +27,10 @@ EXPENSE_CATEGORY_MAP = {
 
 INCOME_CATEGORIES = ["生活费", "红包", "其它"]
 
+INCOME_CATEGORY_ALIASES = {
+    "收红包": "红包",
+}
+
 DEFAULT_CURRENCY = "CNY"
 DEFAULT_EXPENSE_PRIMARY = "其它"
 DEFAULT_EXPENSE_SECONDARY = "未分类"
@@ -34,36 +38,36 @@ DEFAULT_INCOME_PRIMARY = "其它"
 
 # ===== 应用元数据 =====
 APP_NAME = "账本管理系统"
-APP_VERSION = "v0.8"
+APP_VERSION = "v0.9"
 APP_TITLE = f"{APP_NAME} | {APP_VERSION} - 智能财务分析"
 APP_DESCRIPTION = "企业级个人财务管理与AI洞察平台"
 
-# ===== v0.6 新增：颜色系统 (深空主题) =====
+# ===== 颜色系统 (深空科技主题 v0.9) =====
 COLORS = {
     # 背景
-    "bg_primary": "#0a141f",         # 深空背景
-    "bg_secondary": "#0f1828",       # 次级背景
-    "card_bg": "#0f1a2e",            # 卡片背景
-    "card_overlay": "#06111d",       # 卡片叠层
-    
+    "bg_primary": "#060d17",
+    "bg_secondary": "#0b1522",
+    "card_bg": "#0d1a2b",
+    "card_overlay": "#09121e",
+
     # 文字
-    "text_primary": "#d8ecff",       # 主文字
-    "text_secondary": "#9bb0c8",     # 次级文字
-    "text_subdue": "#7a8e9f",        # 淡化文字
-    
+    "text_primary": "#e2edff",
+    "text_secondary": "#8da4be",
+    "text_subdue": "#5e7488",
+
     # 强调色
-    "accent_blue": "#3ab9ff",        # 主强调 - 蓝色
-    "accent_orange": "#ffb057",      # 次强调 - 橙色
-    "accent_green": "#4caf50",       # 成功色 - 绿色
-    "accent_red": "#ff6464",         # 错误/警告色
-    "accent_yellow": "#ffc107",      # 信息色 - 黄色
-    "accent_purple": "#b57edc",      # 特殊色 - 紫色
-    
+    "accent_blue": "#2998ff",
+    "accent_orange": "#f09b4a",
+    "accent_green": "#3ecf8e",
+    "accent_red": "#f25c5c",
+    "accent_yellow": "#e5b73c",
+    "accent_purple": "#a78bfa",
+
     # 边框与阴影
-    "border_light": "rgba(123, 210, 255, 0.2)",
-    "border_normal": "rgba(58, 185, 255, 0.4)",
-    "shadow_soft": "0 8px 22px rgba(5, 14, 30, 0.35)",
-    "shadow_hard": "0 18px 32px rgba(18, 34, 69, 0.55)",
+    "border_light": "rgba(100, 180, 255, 0.12)",
+    "border_normal": "rgba(100, 180, 255, 0.22)",
+    "shadow_soft": "0 4px 16px rgba(0, 0, 0, 0.3)",
+    "shadow_hard": "0 8px 32px rgba(0, 0, 0, 0.5)",
 }
 
 # ===== v0.6 新增：功能开关 =====

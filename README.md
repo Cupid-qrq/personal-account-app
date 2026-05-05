@@ -9,7 +9,7 @@ A Streamlit-based ledger system for CSV import, monthly analytics, and lightweig
 - Role-based access (admin/editor/viewer)
 - Secure login based on `LEDGER_USERS_JSON` (no built-in default credentials)
 - Monthly dashboard for trend, structure, rhythm, and anomaly insights
-- Futuristic but clean dashboard UI (v0.8)
+- Clean dark-themed dashboard UI with glass-morphism cards (v0.9)
 
 ## Tech Stack
 

@@ -1,27 +1,12 @@
 """
-账本管理系统 v0.8 - 企业级财务分析平台
+账本管理系统 v0.9 - 智能财务分析平台
 
-🚀 核心特性：
-  ✅ RBAC 企业级权限系统 (7权限细粒度)
-  ✅ 24+ 高级分析函数（年度对比、健康评分、异常检测、AI洞察）
-  ✅ 现代深空主题 + 玻璃态设计 + 科技视感
-  ✅ 实时财务洞察与可执行建议
-  ✅ 审计日志追踪
-  ✅ SQLite 主数据层
-  ✅ 统一 CSV / SQLite 数据契约
-  
-📊 新增能力：
-  • 财务健康指数 (0-100分级)
-  • 异常检测系统 (IQR方法)
-  • 智能建议生成 (规则驱动)
-  • 预算预测 (3个月展望)
-  • 年度对比分析
-
-🎨 UI/UX：
-  • 深空主题 (#0a141f)
-  • 蓝橙配色系统
-  • 玻璃态卡片 + 毛玻璃效果
-  • 平滑动画 & 交互反馈
+核心特性:
+  RBAC 权限系统 (3角色7权限)
+  24+ 高级分析函数 (年度对比、健康评分、异常检测、AI洞察)
+  深空科技主题 / 玻璃态卡片 / 响应式布局
+  实时财务洞察与可执行建议
+  SQLite 主数据层 / CSV 归档镜像
 """
 
 from pathlib import Path
@@ -91,115 +76,133 @@ st.markdown(f"""
 
     .stApp {{
         background:
-            radial-gradient(circle at 12% 8%, rgba(58, 185, 255, 0.16), transparent 36%),
-            radial-gradient(circle at 88% 14%, rgba(181, 126, 220, 0.14), transparent 38%),
-            linear-gradient(135deg, {COLORS['bg_primary']} 0%, {COLORS['bg_secondary']} 45%, {COLORS['bg_primary']} 100%);
+            radial-gradient(ellipse at 15% 0%, rgba(41, 152, 255, 0.10), transparent 42%),
+            radial-gradient(ellipse at 85% 5%, rgba(167, 139, 250, 0.08), transparent 40%),
+            linear-gradient(180deg, {COLORS['bg_primary']} 0%, {COLORS['bg_secondary']} 100%);
         background-attachment: fixed;
         color: {COLORS['text_primary']};
     }}
 
     [data-testid="stMainBlockContainer"] {{
         background-color: transparent;
-        max-width: 1280px;
-        padding-top: 1.2rem;
+        max-width: 1200px;
+        padding-top: 1rem;
     }}
 
     .hero-shell {{
-        border: 1px solid rgba(58, 185, 255, 0.24);
-        border-radius: 18px;
-        padding: 18px 24px;
-        margin: 4px 0 18px 0;
-        background: linear-gradient(120deg, rgba(15, 26, 46, 0.82) 0%, rgba(10, 20, 31, 0.72) 100%);
-        box-shadow: 0 14px 36px rgba(6, 17, 29, 0.42);
+        border: 1px solid {COLORS['border_normal']};
+        border-radius: 14px;
+        padding: 20px 28px;
+        margin: 0 0 20px 0;
+        background: linear-gradient(105deg, rgba(13, 26, 43, 0.85) 0%, rgba(9, 18, 30, 0.70) 100%);
+        backdrop-filter: blur(10px);
+        box-shadow: {COLORS['shadow_soft']};
     }}
 
     .hero-title {{
-        font-size: 1.78rem;
+        font-size: 1.6rem;
         font-weight: 700;
         line-height: 1.2;
-        letter-spacing: 0.4px;
+        letter-spacing: 0.2px;
         color: {COLORS['text_primary']};
         margin: 0;
     }}
 
     .hero-sub {{
-        margin-top: 8px;
+        margin-top: 6px;
         color: {COLORS['text_secondary']};
-        font-size: 0.95rem;
-    }}
-
-    .section-title {{
-        font-size: 1.04rem;
-        font-weight: 650;
-        color: {COLORS['text_primary']};
-        margin: 8px 0 10px 0;
+        font-size: 0.88rem;
+        line-height: 1.5;
     }}
 
     .stTabs [data-baseweb="tab-list"] {{
         background-color: transparent;
-        border-bottom: 2px solid rgba(58, 185, 255, 0.2);
+        border-bottom: 1px solid {COLORS['border_light']};
+        gap: 0;
     }}
 
     .stTabs [data-baseweb="tab"] {{
         color: {COLORS['text_secondary']};
-        border-bottom: 2px solid transparent;
+        font-size: 0.88rem;
+        padding: 8px 16px;
+        border-radius: 8px 8px 0 0;
+        margin-right: 2px;
+        transition: all 0.2s ease;
     }}
 
     .stTabs [aria-selected="true"] {{
         color: {COLORS['accent_blue']};
+        background: rgba(41, 152, 255, 0.08);
         border-bottom: 2px solid {COLORS['accent_blue']};
     }}
 
     .stButton > button {{
         background: linear-gradient(135deg, {COLORS['accent_blue']}, {COLORS['accent_purple']});
-        color: {COLORS['text_primary']};
-        border: 1px solid {COLORS['accent_blue']};
-        border-radius: 10px;
-        transition: all 0.3s ease;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        transition: all 0.25s ease;
         font-weight: 600;
+        font-size: 0.85rem;
     }}
 
     .stButton > button:hover {{
-        background: linear-gradient(135deg, {COLORS['accent_purple']}, {COLORS['accent_blue']});
-        box-shadow: 0 0 20px rgba(58, 185, 255, 0.5);
-        transform: translateY(-2px);
+        background: linear-gradient(135deg, #3aadff, #b99eff);
+        box-shadow: 0 0 18px rgba(41, 152, 255, 0.35);
+        transform: translateY(-1px);
     }}
 
     .stButton > button:disabled {{
-        opacity: 0.55;
+        opacity: 0.45;
         transform: none;
         box-shadow: none;
     }}
 
     .stTextInput > div > div > input,
     .stSelectbox > div > div > select {{
-        background-color: rgba(15, 26, 46, 0.6);
+        background-color: rgba(13, 26, 43, 0.55);
         color: {COLORS['text_primary']};
         border: 1px solid {COLORS['border_light']};
         border-radius: 8px;
+        font-size: 0.9rem;
     }}
 
     [data-testid="stMetric"] {{
-        background: rgba(15, 26, 46, 0.5);
+        background: rgba(13, 26, 43, 0.45);
         border: 1px solid {COLORS['border_light']};
-        border-radius: 14px;
-        padding: 16px;
-        transition: all 0.3s ease;
+        border-radius: 12px;
+        padding: 14px 16px;
+        transition: all 0.25s ease;
     }}
 
     [data-testid="stMetric"]:hover {{
-        background: rgba(15, 26, 46, 0.8);
+        background: rgba(13, 26, 43, 0.7);
         border-color: {COLORS['accent_blue']};
-        box-shadow: 0 8px 24px rgba(58, 185, 255, 0.2);
+        box-shadow: 0 4px 20px rgba(41, 152, 255, 0.12);
     }}
 
-    h1, h2, h3 {{
+    h2, h3, h4 {{
         color: {COLORS['text_primary']};
     }}
 
     [data-testid="stSidebar"] {{
-        background: rgba(6, 17, 29, 0.8);
+        background: rgba(6, 13, 23, 0.85);
         border-right: 1px solid {COLORS['border_light']};
+        backdrop-filter: blur(8px);
+    }}
+
+    [data-testid="stSidebar"] .stMarkdown {{
+        color: {COLORS['text_secondary']};
+    }}
+
+    hr {{
+        border-color: {COLORS['border_light']};
+        margin: 0.8rem 0;
+    }}
+
+    .stAlert {{
+        border-radius: 10px;
+        font-size: 0.88rem;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -235,10 +238,10 @@ def login_page():
     with col2:
         st.markdown(f"""
         <div class="hero-shell" style="text-align: center;">
-            <div style="font-size: 42px; margin: 4px 0 8px 0;">💳</div>
+            <div style="font-size: 36px; margin: 0 0 8px 0;">&nbsp;</div>
             <h1 class="hero-title">{APP_NAME}</h1>
-            <div class="hero-sub">{VERSION_TAG} | SQLite 财务分析平台</div>
-            <div class="hero-sub">企业级权限管理 · 智能财务洞察 · 实时异常检测</div>
+            <div class="hero-sub">{VERSION_TAG} &middot; 智能财务分析平台</div>
+            <div class="hero-sub">企业级权限管理 &middot; 多维数据洞察 &middot; 实时异常检测</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -369,8 +372,8 @@ if master_df.empty:
 
 st.markdown(f"""
 <div class="hero-shell">
-    <p class="hero-title">💳 财务分析驾驶舱</p>
-    <p class="hero-sub">智能消费洞察 · 企业级分析 · {VERSION_TAG}</p>
+    <p class="hero-title">财务分析驾驶舱</p>
+    <p class="hero-sub">{VERSION_TAG} &middot; 智能消费洞察 &middot; 企业级分析</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -390,7 +393,7 @@ if month_df.empty:
     st.stop()
 
 st.markdown("---")
-st.markdown("### 📊 财务概览 & 智能评分")
+st.markdown("### 财务概览")
 
 overview = monthly_overview(month_df)
 
@@ -416,8 +419,8 @@ if FEATURES["expense_health_index"]:
     col_health, col_efficiency, col_insights = st.columns(3, gap="medium")
 
     with col_health:
-        st.markdown("#### ❤️ 财务健康指数")
-        health_color = "#4caf50" if health["index"] >= 70 else "#ffc107" if health["index"] >= 50 else "#ff6464"
+        st.markdown("#### 财务健康指数")
+        health_color = COLORS['accent_green'] if health["index"] >= 70 else COLORS['accent_yellow'] if health["index"] >= 50 else COLORS['accent_red']
         st.markdown(f"""
         <div style='text-align: center; padding: 20px; border-radius: 12px; 
                     background: rgba({int(health_color[1:3], 16)}, {int(health_color[3:5], 16)}, {int(health_color[5:7], 16)}, 0.15);
@@ -432,7 +435,7 @@ if FEATURES["expense_health_index"]:
             st.caption(f"💡 {rec}")
 
     with col_efficiency:
-        st.markdown("#### 📈 消费效率")
+        st.markdown("#### 消费效率")
         st.markdown(f"""
         **评分**: {efficiency["score"]:.0f}/100  
         **等级**: {efficiency["level"]}
@@ -444,24 +447,24 @@ if FEATURES["expense_health_index"]:
                 st.metric(k, f"{v:.1f}")
 
     with col_insights:
-        st.markdown("#### 🧠 智能洞察")
+        st.markdown("#### 智能洞察")
         if FEATURES["smart_insights"]:
             insights = generate_smart_insights(master_df, selected_month)
             for insight in insights["insights"][:2]:
                 st.info(f"💡 {insight}", icon="🎯")
 
 st.markdown("---")
-st.markdown("### 🔍 四维分析中心")
+st.markdown("### 分析中心")
 
 tab1, tab2, tab3, tab4 = st.tabs([
-    "📈 趋势与同比",
-    "🧩 结构透视",
-    "🔥 消费节律",
-    "🎯 异常检测",
+    "趋势与同比",
+    "结构透视",
+    "消费节律",
+    "异常检测",
 ])
 
 with tab1:
-    st.markdown("#### 📈 趋势分析")
+    st.markdown("#### 趋势分析")
     monthly_df = monthly_trend(master_df)
     mom_data = month_over_month(master_df, selected_month)
 
@@ -499,7 +502,7 @@ with tab1:
             st.info("✓ 首个月份，无上月数据")
 
 with tab2:
-    st.markdown("#### 🧩 分类结构")
+    st.markdown("#### 分类结构")
     share_df = monthly_category_share(master_df)
 
     if not share_df.empty:
@@ -530,7 +533,7 @@ with tab2:
                 st.plotly_chart(fig_pie, use_container_width=True)
 
 with tab3:
-    st.markdown("#### 🔥 周期热力分析")
+    st.markdown("#### 周期热力分析")
     rhythm_df = monthly_rhythm_heatmap(master_df, selected_month)
 
     if not rhythm_df.empty:
@@ -558,7 +561,7 @@ with tab3:
         st.info("📬 无足够数据生成热力图")
 
 with tab4:
-    st.markdown("#### 🚨 异常检测 (v0.8 优化)")
+    st.markdown("#### 异常检测")
 
     if FEATURES["anomaly_detection"]:
         anomalies = anomaly_detection(month_df)
@@ -566,7 +569,7 @@ with tab4:
         col_high, col_rare = st.columns(2)
 
         with col_high:
-            st.markdown("**超大金额异常**")
+            st.markdown("**大额异常**")
             if anomalies["high_amount_anomalies"]:
                 for anom in anomalies["high_amount_anomalies"][:5]:
                     anom_date = anom.get("日期") or anom.get("时间") or "未知日期"
@@ -585,13 +588,13 @@ with tab4:
                 st.success("✓ 分类多元充分")
 
 st.markdown("---")
-st.markdown("### 📋 详细分析")
+st.markdown("### 明细分析")
 
 detail_tab1, detail_tab2, detail_tab3, detail_tab4 = st.tabs([
-    "💳 支出分析",
-    "🔍 消费习惯",
-    "📦 详细账目",
-    "💼 预算建议",
+    "支出分析",
+    "消费习惯",
+    "详细账目",
+    "预算建议",
 ])
 
 with detail_tab1:
@@ -653,10 +656,10 @@ with detail_tab4:
 
 st.markdown("---")
 st.markdown(f"""
-<div style='text-align: center; opacity: 0.6; font-size: 12px; margin-top: 30px;'>
-    <p>© 2026 账本管理系统 {VERSION_TAG} | SQLite 财务分析平台<br>
-    最后更新: {datetime.now().strftime('%Y-%m-%d %H:%M')} | 
-    用户: {st.session_state.username} | 
-    角色: {st.session_state.user_role}</p>
+<div style='text-align: center; opacity: 0.5; font-size: 11px; margin-top: 40px; color: {COLORS['text_subdue']};'>
+    <p>{APP_NAME} {VERSION_TAG} &middot; SQLite 财务分析平台<br>
+    {datetime.now().strftime('%Y-%m-%d %H:%M')} &middot;
+    {st.session_state.username} &middot;
+    {st.session_state.user_role}</p>
 </div>
 """, unsafe_allow_html=True)

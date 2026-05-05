@@ -13,6 +13,7 @@ from .config import (
     DEFAULT_INCOME_PRIMARY,
     EXPENSE_CATEGORY_MAP,
     INCOME_CATEGORIES,
+    INCOME_CATEGORY_ALIASES,
     REQUIRED_COLUMNS,
 )
 from .data_contract import CANONICAL_COLUMNS, SQLITE_DB_SUFFIX
@@ -65,6 +66,7 @@ def _normalize_category(df: pd.DataFrame) -> pd.DataFrame:
         valid_secondary = set(secondaries)
         df.loc[mask & ~df["二级分类"].isin(valid_secondary), "二级分类"] = DEFAULT_EXPENSE_SECONDARY
 
+    df.loc[income_mask, "分类"] = df.loc[income_mask, "分类"].replace(INCOME_CATEGORY_ALIASES)
     df.loc[income_mask & ~df["分类"].isin(INCOME_CATEGORIES), "分类"] = DEFAULT_INCOME_PRIMARY
     df.loc[income_mask, "二级分类"] = ""
 
