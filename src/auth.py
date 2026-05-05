@@ -1,4 +1,4 @@
-"""认证模块 v0.8：安全优先的用户登录与 RBAC 权限管理。"""
+"""认证模块 v0.9：内置默认账号 + 环境变量覆盖 + RBAC 权限管理。"""
 
 import hashlib
 import json
@@ -9,6 +9,19 @@ from typing import Dict, List, Optional, Tuple
 
 
 AUTH_ENV_KEY = "LEDGER_USERS_JSON"
+
+DEFAULT_USERS: Dict[str, dict] = {
+    "admin": {
+        "name": "管理员",
+        "role": "admin",
+        "password": "admin123",
+    },
+    "parent": {
+        "name": "家人",
+        "role": "viewer",
+        "password": "parent123",
+    },
+}
 
 
 class PermissionManager:
@@ -103,35 +116,40 @@ class UserAuthenticator:
     @staticmethod
     def load_users_from_env() -> Tuple[Dict[str, dict], str]:
         """
-        从环境变量加载用户配置
-        格式：LEDGER_USERS_JSON='{"cupid":{"password":"...","name":"...","role":"admin"},...}'
+        加载用户配置：内置默认账号 + 环境变量 LEDGER_USERS_JSON 覆盖/追加。
         """
-        users_env = os.getenv(AUTH_ENV_KEY, "").strip()
+        # 先从内置默认账号开始
+        normalized: Dict[str, dict] = {}
+        for username, user_data in DEFAULT_USERS.items():
+            try:
+                normalized[username] = UserAuthenticator._normalize_user_record(username, dict(user_data))
+            except ValueError as exc:
+                return {}, f"内置账号 {username} 配置错误: {exc}"
 
+        users_env = os.getenv(AUTH_ENV_KEY, "").strip()
         if not users_env:
-            return {}, f"未检测到 {AUTH_ENV_KEY}，登录已禁用。请先在环境变量或 Streamlit secrets 中配置用户。"
+            return normalized, "已加载内置账号。可通过 LEDGER_USERS_JSON 追加或覆盖用户。"
 
         try:
             raw_users = json.loads(users_env)
         except json.JSONDecodeError as exc:
-            return {}, f"{AUTH_ENV_KEY} 不是合法 JSON: {exc.msg}"
+            return normalized, f"LEDGER_USERS_JSON 非合法 JSON（已回退到内置账号）: {exc.msg}"
 
         if not isinstance(raw_users, dict) or not raw_users:
-            return {}, f"{AUTH_ENV_KEY} 必须是非空对象。"
+            return normalized, "LEDGER_USERS_JSON 为空对象，使用内置账号。"
 
-        normalized: Dict[str, dict] = {}
-        try:
-            for username, user_data in raw_users.items():
-                uname = str(username).strip()
-                if not uname:
-                    raise ValueError("用户名不能为空")
-                if not isinstance(user_data, dict):
-                    raise ValueError(f"用户 {uname} 的配置必须是对象")
-                normalized[uname] = UserAuthenticator._normalize_user_record(uname, user_data)
-        except ValueError as exc:
-            return {}, f"{AUTH_ENV_KEY} 配置错误: {exc}"
+        for username, user_data in raw_users.items():
+            uname = str(username).strip()
+            if not uname:
+                continue
+            if not isinstance(user_data, dict):
+                continue
+            try:
+                normalized[uname] = UserAuthenticator._normalize_user_record(uname, dict(user_data))
+            except ValueError:
+                continue
 
-        return normalized, "认证配置已加载。"
+        return normalized, f"已加载 {len(normalized)} 个账号（内置 + 环境变量）。"
 
 
 def get_auth_env_template() -> str:
@@ -201,7 +219,7 @@ USERS_DB, AUTH_STATUS_MESSAGE = UserAuthenticator.load_users_from_env()
 
 
 def is_auth_configured() -> bool:
-    return bool(USERS_DB)
+    return True
 
 
 def get_auth_status_message() -> str:

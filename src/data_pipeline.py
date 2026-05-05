@@ -75,7 +75,6 @@ def _normalize_category(df: pd.DataFrame) -> pd.DataFrame:
 
 def normalize_records(df: pd.DataFrame) -> pd.DataFrame:
     df = _ensure_required_columns(df)
-    df = df.copy()
 
     for col in REQUIRED_COLUMNS:
         if col not in ["金额", "时间"]:
@@ -109,7 +108,7 @@ def _normalize_time_column(df: pd.DataFrame) -> pd.DataFrame:
 def _merge_with_existing_csv(file_path: Path, df_new: pd.DataFrame) -> pd.DataFrame:
     df_new = _normalize_time_column(df_new.copy())
     if file_path.exists():
-        df_old = pd.read_csv(file_path)
+        df_old = pd.read_csv(file_path, encoding="utf-8-sig")
         df_old = _normalize_time_column(df_old)
         merged = pd.concat([df_old, df_new], ignore_index=True)
         if "ID" in merged.columns:
@@ -186,7 +185,7 @@ def load_master(master_file: Path) -> pd.DataFrame:
         return load_records(db_file)
 
     if master_file.exists():
-        frame = pd.read_csv(master_file)
+        frame = pd.read_csv(master_file, encoding="utf-8-sig")
         if not frame.empty:
             bootstrap_from_csv(master_file, db_file)
             return load_records(db_file)

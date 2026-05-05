@@ -18,36 +18,25 @@ from datetime import datetime
 
 from src.analytics import (
     anomaly_detection,
-    category_budget_forecast,
-    consumption_alerts,
     consumption_habit,
-    daily_expense_trend,
     expense_by_category,
-    expense_by_subcategory,
     expense_health_index,
     filter_month,
     generate_budget_suggestion,
     generate_smart_insights,
     month_over_month,
     monthly_category_share,
-    monthly_insight_digest,
     monthly_rhythm_heatmap,
     monthly_trend,
     monthly_overview,
     prepare_detail_table,
     spending_efficiency_score,
-    subcategory_by_parent,
-    top_expenses,
-    year_over_year_comparison,
 )
 from src.auth import (
     authenticate_user,
     can_upload,
-    get_auth_env_template,
-    get_auth_status_message,
     get_user_permissions,
     is_auth_configured,
-    PermissionManager,
 )
 from src.data_pipeline import (
     discover_root_csv_files,
@@ -59,7 +48,7 @@ from src.config import APP_NAME, APP_VERSION, COLORS, FEATURES
 
 st.set_page_config(
     page_title=f"{APP_NAME} {APP_VERSION} | SQLite 财务平台",
-    page_icon="💳",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -220,15 +209,6 @@ if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "configured"
 
 AUTH_READY = is_auth_configured()
-AUTH_STATUS = get_auth_status_message().strip()
-
-if not AUTH_READY:
-    # 无认证配置时，自动进入只读访客模式，避免云端页面不可访问。
-    st.session_state.logged_in = True
-    st.session_state.username = "guest"
-    st.session_state.user_role = "viewer"
-    st.session_state.user_perms = PermissionManager.get_permissions("viewer")
-    st.session_state.auth_mode = "readonly"
 
 
 def login_page():
@@ -245,18 +225,12 @@ def login_page():
         </div>
         """, unsafe_allow_html=True)
 
-        if not AUTH_READY:
-            st.error(f"🔒 {AUTH_STATUS}")
-            st.caption("请在环境变量或 Streamlit Cloud Secrets 中配置 `LEDGER_USERS_JSON` 后再登录。")
-            with st.expander("查看 `LEDGER_USERS_JSON` 配置模板"):
-                st.code(get_auth_env_template(), language="json")
+        username = st.text_input("用户名", placeholder="输入用户名", key="login_user")
+        password = st.text_input("密码", type="password", placeholder="输入密码", key="login_pass")
 
-        username = st.text_input("👤 用户名", placeholder="输入用户名", key="login_user")
-        password = st.text_input("🔑 密码", type="password", placeholder="输入密码", key="login_pass")
-
-        if st.button("🚀 登录", use_container_width=True, key="do_login", disabled=not AUTH_READY):
+        if st.button("登录", use_container_width=True, key="do_login"):
             if not username or not password:
-                st.error("❌ 用户名和密码不能为空")
+                st.error("用户名和密码不能为空")
             else:
                 success, user_name, role = authenticate_user(username, password)
                 if success:
@@ -265,42 +239,32 @@ def login_page():
                     st.session_state.user_role = role
                     st.session_state.user_perms = get_user_permissions(username)
                     st.session_state.auth_mode = "configured"
-                    st.success(f"🎉 欢迎, {user_name}!")
+                    st.success(f"欢迎, {user_name}!")
                     st.rerun()
                 else:
-                    st.error("❌ 用户名或密码错误")
-
-        st.caption("支持角色：管理员(admin) / 编辑者(editor) / 访客(viewer)")
+                    st.error("用户名或密码错误")
 
 
-if AUTH_READY and not st.session_state.logged_in:
+if not st.session_state.logged_in:
     login_page()
     st.stop()
 
 with st.sidebar:
-    st.markdown("### 👤 账户信息")
+    st.markdown("### 账户信息")
     role_name_map = {
         "admin": "管理员",
         "editor": "编辑者",
         "viewer": "访客",
-    }
-    role_icon_map = {
-        "admin": "🔑",
-        "editor": "✍️",
-        "viewer": "👁️",
     }
 
     col_user1, col_user2 = st.columns(2)
     with col_user1:
         st.write(f"**{st.session_state.username}**")
     with col_user2:
-        role_badge = role_icon_map.get(st.session_state.user_role, "👤")
         role_text = role_name_map.get(st.session_state.user_role, st.session_state.user_role)
-        st.write(f"__{role_badge} {role_text}__")
+        st.write(f"__{role_text}__")
 
-    if st.session_state.get("auth_mode") == "readonly":
-        st.info("🔓 当前为公开只读模式（未配置认证）。")
-    elif st.button("🔐 登出", use_container_width=True, key="do_logout"):
+    if st.button("登出", use_container_width=True, key="do_logout"):
         st.session_state.logged_in = False
         st.session_state.username = None
         st.session_state.user_role = None
@@ -311,14 +275,13 @@ with st.sidebar:
     st.markdown("---")
 
     if can_upload(st.session_state.user_role):
-        st.markdown("### 📤 数据导入")
-        st.info("你拥有数据上传权限")
+        st.markdown("### 数据导入")
 
         upload_choice = st.radio("选择方式", ["单文件上传", "批量扫描"], key="upload_mode")
 
         if upload_choice == "单文件上传":
             uploaded_file = st.file_uploader("选择 CSV 文件", type=["csv"], key="file_upload")
-            if st.button("✅ 导入", use_container_width=True, key="do_upload"):
+            if st.button("导入", use_container_width=True, key="do_upload"):
                 if uploaded_file:
                     try:
                         result = import_csv_bytes(
@@ -328,46 +291,46 @@ with st.sidebar:
                             uploaded_file.name,
                         )
                         st.success(
-                            f"✅ 导入成功！\n"
-                            f"• 新增 {result['imported_rows']} 条记录\n"
-                            f"• 月份: {', '.join(result['months_saved']) if result['months_saved'] else '无'}"
+                            f"导入成功！\n"
+                            f"新增 {result['imported_rows']} 条记录\n"
+                            f"月份: {', '.join(result['months_saved']) if result['months_saved'] else '无'}"
                         )
                         st.rerun()
                     except Exception as e:
-                        st.error(f"❌ 导入失败: {str(e)[:80]}")
+                        st.error(f"导入失败: {str(e)[:80]}")
 
         else:
-            if st.button("🔄 批量扫描导入", use_container_width=True, key="do_batch"):
+            if st.button("批量扫描导入", use_container_width=True, key="do_batch"):
                 try:
                     files = discover_root_csv_files(PROJECT_ROOT)
                     if files:
                         for f in files:
                             import_csv_file(f, ARCHIVE_DIR, MASTER_FILE)
-                        st.success(f"✅ 批量导入完成 ({len(files)} 个文件)")
+                        st.success(f"批量导入完成 ({len(files)} 个文件)")
                         st.rerun()
                     else:
-                        st.warning("⚠️ 未发现 CSV 文件")
+                        st.warning("未发现 CSV 文件")
                 except Exception as e:
-                    st.error(f"❌ 批量导入失败: {str(e)[:80]}")
+                    st.error(f"批量导入失败: {str(e)[:80]}")
     else:
-        st.warning("💼 当前角色无上传权限，已进入只读分析模式。")
+        st.info("当前角色为只读模式，无上传权限。")
 
     st.markdown("---")
-    st.markdown("### 🔗 快速链接")
+    st.markdown("### 链接")
     col_link1, col_link2 = st.columns(2)
     with col_link1:
-        st.link_button("⭐ Star", "https://github.com/Cupid-qrq/personal-account-app/stargazers")
+        st.link_button("Star", "https://github.com/Cupid-qrq/personal-account-app/stargazers")
     with col_link2:
-        st.link_button("💻 GitHub项目", "https://github.com/Cupid-qrq/personal-account-app")
+        st.link_button("GitHub", "https://github.com/Cupid-qrq/personal-account-app")
 
 try:
     master_df = load_master(MASTER_FILE)
 except Exception as e:
-    st.error(f"❌ 数据加载失败: {str(e)[:100]}")
+    st.error(f"数据加载失败: {str(e)[:100]}")
     st.stop()
 
 if master_df.empty:
-    st.warning("⚠️ 暂无数据，请上传账单文件开始使用")
+    st.warning("暂无数据，请上传账单文件开始使用")
     st.stop()
 
 st.markdown(f"""
@@ -377,19 +340,16 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-if st.session_state.get("auth_mode") == "readonly":
-    st.info("当前运行在公开只读模式。若需登录上传，请在 Streamlit Secrets 配置 LEDGER_USERS_JSON。")
-
 months = sorted(master_df["月份"].dropna().unique().tolist())
 if not months:
-    st.error("❌ 没有有效的月份数据")
+    st.error("没有有效的月份数据")
     st.stop()
 
-selected_month = st.selectbox("📅 选择分析月份", months, index=len(months) - 1, key="month_sel")
+selected_month = st.selectbox("分析月份", months, index=len(months) - 1, key="month_sel")
 
 month_df = filter_month(master_df, selected_month)
 if month_df.empty:
-    st.warning(f"⚠️ {selected_month} 没有数据")
+    st.warning(f"{selected_month} 没有数据")
     st.stop()
 
 st.markdown("---")
@@ -399,11 +359,11 @@ overview = monthly_overview(month_df)
 
 cols = st.columns(5)
 metrics = [
-    ("💰 收入", f"¥{overview['income']:.0f}", COLORS['accent_green']),
-    ("💸 支出", f"¥{overview['expense']:.0f}", COLORS['accent_red']),
-    ("📊 结余", f"¥{overview['balance']:.0f}", COLORS['accent_blue']),
-    ("📋 笔数", f"{overview['records']}", COLORS['accent_orange']),
-    (f"{VERSION_TAG} ✨", "已就绪", COLORS['accent_purple']),
+    ("收入", f"¥{overview['income']:.0f}", COLORS['accent_green']),
+    ("支出", f"¥{overview['expense']:.0f}", COLORS['accent_red']),
+    ("结余", f"¥{overview['balance']:.0f}", COLORS['accent_blue']),
+    ("笔数", f"{overview['records']}", COLORS['accent_orange']),
+    (f"{VERSION_TAG}", "已就绪", COLORS['accent_purple']),
 ]
 
 for col, (label, value, _) in zip(cols, metrics):
@@ -432,7 +392,7 @@ if FEATURES["expense_health_index"]:
 
         st.markdown("**建议:**")
         for rec in health["recommendations"][:2]:
-            st.caption(f"💡 {rec}")
+            st.caption(rec)
 
     with col_efficiency:
         st.markdown("#### 消费效率")
@@ -451,7 +411,7 @@ if FEATURES["expense_health_index"]:
         if FEATURES["smart_insights"]:
             insights = generate_smart_insights(master_df, selected_month)
             for insight in insights["insights"][:2]:
-                st.info(f"💡 {insight}", icon="🎯")
+                st.info(insight)
 
 st.markdown("---")
 st.markdown("### 分析中心")
@@ -499,7 +459,7 @@ with tab1:
             st.metric("收入环比", f"¥{mom_data['income_delta']:+.0f}", f"{mom_data['income_delta_pct']:+.1f}%")
             st.metric("结余环比", f"¥{mom_data['balance_delta']:+.0f}", f"{mom_data['balance_delta_pct']:+.1f}%")
         else:
-            st.info("✓ 首个月份，无上月数据")
+            st.info("首个月份，无上月数据")
 
 with tab2:
     st.markdown("#### 分类结构")
@@ -558,7 +518,7 @@ with tab3:
         )
         st.plotly_chart(fig_heat, use_container_width=True)
     else:
-        st.info("📬 无足够数据生成热力图")
+        st.info("无足够数据生成热力图")
 
 with tab4:
     st.markdown("#### 异常检测")
@@ -575,17 +535,17 @@ with tab4:
                     anom_date = anom.get("日期") or anom.get("时间") or "未知日期"
                     anom_cat = anom.get("分类", "未分类")
                     anom_amount = float(anom.get("金额", 0.0))
-                    st.warning(f"⚠️ {anom_date} | {anom_cat} | **¥{anom_amount:.0f}**")
+                    st.warning(f"{anom_date} | {anom_cat} | **¥{anom_amount:.0f}**")
             else:
-                st.success("✓ 无异常")
+                st.success("无异常")
 
         with col_rare:
             st.markdown("**低频分类**")
             if anomalies["rare_categories"]:
                 for cat in anomalies["rare_categories"][:5]:
-                    st.info(f"📌 {cat}")
+                    st.info(cat)
             else:
-                st.success("✓ 分类多元充分")
+                st.success("分类多元充分")
 
 st.markdown("---")
 st.markdown("### 明细分析")
