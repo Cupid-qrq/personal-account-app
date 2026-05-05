@@ -1,6 +1,5 @@
 [client]
-# 隐藏部分按钮
-showErrorDetails = false
+showErrorDetails = true
 showSidebarNavigation = true
 
 [logger]
@@ -8,12 +7,3 @@ level = "warning"
 
 [browser]
 gatherUsageStats = false
-
-[theme]
-# 使用自定义主题，避免用户手动切换
-base = "dark"
-primaryColor = "#68d3ff"
-backgroundColor = "#0f0f1e"
-secondaryBackgroundColor = "#1a1a3e"
-textColor = "#e0e0e0"
-font = "sans serif"

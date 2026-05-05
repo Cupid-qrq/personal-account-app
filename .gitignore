@@ -49,3 +49,6 @@ data/origin/*.tmp
 /context_*.txt
 /*_draft.md
 *.tmp
+
+# Claude Code
+.claude/

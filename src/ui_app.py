@@ -48,7 +48,7 @@ from src.config import APP_NAME, APP_VERSION, COLORS, FEATURES
 
 st.set_page_config(
     page_title=f"{APP_NAME} {APP_VERSION} | SQLite 财务平台",
-    page_icon="",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -64,10 +64,7 @@ st.markdown(f"""
     header[data-testid="stHeader"] {{ display: none !important; }}
 
     .stApp {{
-        background:
-            radial-gradient(ellipse at 15% 0%, rgba(41, 152, 255, 0.10), transparent 42%),
-            radial-gradient(ellipse at 85% 5%, rgba(167, 139, 250, 0.08), transparent 40%),
-            linear-gradient(180deg, {COLORS['bg_primary']} 0%, {COLORS['bg_secondary']} 100%);
+        background: linear-gradient(180deg, {COLORS['bg_primary']} 0%, {COLORS['bg_secondary']} 100%);
         background-attachment: fixed;
         color: {COLORS['text_primary']};
     }}
@@ -84,7 +81,6 @@ st.markdown(f"""
         padding: 20px 28px;
         margin: 0 0 20px 0;
         background: linear-gradient(105deg, rgba(13, 26, 43, 0.85) 0%, rgba(9, 18, 30, 0.70) 100%);
-        backdrop-filter: blur(10px);
         box-shadow: {COLORS['shadow_soft']};
     }}
 
@@ -177,11 +173,6 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{
         background: rgba(6, 13, 23, 0.85);
         border-right: 1px solid {COLORS['border_light']};
-        backdrop-filter: blur(8px);
-    }}
-
-    [data-testid="stSidebar"] .stMarkdown {{
-        color: {COLORS['text_secondary']};
     }}
 
     hr {{
@@ -228,7 +219,7 @@ def login_page():
         username = st.text_input("用户名", placeholder="输入用户名", key="login_user")
         password = st.text_input("密码", type="password", placeholder="输入密码", key="login_pass")
 
-        if st.button("登录", use_container_width=True, key="do_login"):
+        if st.button("登录", key="do_login"):
             if not username or not password:
                 st.error("用户名和密码不能为空")
             else:
@@ -264,7 +255,7 @@ with st.sidebar:
         role_text = role_name_map.get(st.session_state.user_role, st.session_state.user_role)
         st.write(f"__{role_text}__")
 
-    if st.button("登出", use_container_width=True, key="do_logout"):
+    if st.button("登出", key="do_logout"):
         st.session_state.logged_in = False
         st.session_state.username = None
         st.session_state.user_role = None
@@ -281,7 +272,7 @@ with st.sidebar:
 
         if upload_choice == "单文件上传":
             uploaded_file = st.file_uploader("选择 CSV 文件", type=["csv"], key="file_upload")
-            if st.button("导入", use_container_width=True, key="do_upload"):
+            if st.button("导入", key="do_upload"):
                 if uploaded_file:
                     try:
                         result = import_csv_bytes(
@@ -300,7 +291,7 @@ with st.sidebar:
                         st.error(f"导入失败: {str(e)[:80]}")
 
         else:
-            if st.button("批量扫描导入", use_container_width=True, key="do_batch"):
+            if st.button("批量扫描导入", key="do_batch"):
                 try:
                     files = discover_root_csv_files(PROJECT_ROOT)
                     if files:
@@ -450,7 +441,7 @@ with tab1:
             st.plotly_chart(fig, use_container_width=True)
         except Exception:
             st.warning("趋势图渲染失败，已降级为表格展示。")
-            st.dataframe(trend_long, use_container_width=True, hide_index=True)
+            st.dataframe(trend_long, hide_index=True)
 
     with col_mom:
         st.markdown("#### 环比变化")
@@ -591,7 +582,6 @@ with detail_tab3:
         display_df["金额"] = pd.to_numeric(display_df["金额"], errors="coerce").fillna(0.0)
         st.dataframe(
             display_df,
-            use_container_width=True,
             hide_index=True,
             column_config={
                 "金额": st.column_config.NumberColumn("金额", format="¥ %.2f"),
@@ -606,7 +596,6 @@ with detail_tab4:
             display_df[col_name] = pd.to_numeric(display_df[col_name], errors="coerce").fillna(0.0)
         st.dataframe(
             display_df,
-            use_container_width=True,
             hide_index=True,
             column_config={
                 "本月支出": st.column_config.NumberColumn("本月支出", format="¥ %.2f"),
