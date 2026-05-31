@@ -46,7 +46,21 @@ from src.config import APP_NAME, APP_VERSION
 from src.data_pipeline import discover_origin_csv_files
 from src.data_service import ORIGIN_DIR, data_status, import_local_file, import_upload, load_ledger, rebuild_all_data
 from src.styles import apply_v1_theme
-from src.ui_components import chips, dataframe_money, health_bar, hero, insight_card, metric_card, money, note, pct, plain_grade, rank_list, section
+from src.ui_components import (
+    chips,
+    dataframe_money,
+    health_bar,
+    hero,
+    insight_card,
+    metric_card,
+    money,
+    note,
+    pct,
+    plain_grade,
+    rank_list,
+    section,
+    stretch_kwargs,
+)
 
 
 st.set_page_config(
@@ -83,7 +97,7 @@ def _plot_layout(height: int = 330) -> dict:
 
 
 def _show_chart(fig: go.Figure, height: int = 340, showlegend: bool = True) -> None:
-    st.plotly_chart(apply_chart_theme(fig, height=height, showlegend=showlegend), width="stretch")
+    st.plotly_chart(apply_chart_theme(fig, height=height, showlegend=showlegend), **stretch_kwargs())
 
 
 def _login_page() -> None:
@@ -101,7 +115,7 @@ def _login_page() -> None:
         )
         username = st.text_input("用户名", placeholder="admin / parent", key="login_user")
         password = st.text_input("密码", type="password", placeholder="输入密码", key="login_pass")
-        if st.button("登录", key="do_login", width="stretch"):
+        if st.button("登录", key="do_login", **stretch_kwargs()):
             if not username or not password:
                 st.error("用户名和密码不能为空")
                 return
@@ -146,7 +160,7 @@ def _render_sidebar(master_df: pd.DataFrame) -> None:
         )
         st.write(f"**{st.session_state.username}**")
         st.caption(f"{role_name} · {APP_VERSION}")
-        if st.button("登出", key="do_logout", width="stretch"):
+        if st.button("登出", key="do_logout", **stretch_kwargs()):
             st.session_state.logged_in = False
             st.session_state.username = None
             st.session_state.user_role = None
@@ -165,7 +179,7 @@ def _render_sidebar(master_df: pd.DataFrame) -> None:
 
         if can_upload(st.session_state.user_role):
             uploaded_file = st.file_uploader("上传账单 CSV", type=["csv"], key="file_upload")
-            if st.button("导入上传文件", key="do_upload", width="stretch"):
+            if st.button("导入上传文件", key="do_upload", **stretch_kwargs()):
                 if not uploaded_file:
                     st.warning("请先选择 CSV 文件")
                 else:
@@ -180,13 +194,13 @@ def _render_sidebar(master_df: pd.DataFrame) -> None:
             origin_files = discover_origin_csv_files(ORIGIN_DIR)
             if origin_files:
                 selected_file = st.selectbox("导入 origin 文件", origin_files, format_func=lambda p: p.name)
-                if st.button("导入选中文件", key="import_origin", width="stretch"):
+                if st.button("导入选中文件", key="import_origin", **stretch_kwargs()):
                     result = import_local_file(selected_file)
                     st.cache_data.clear()
                     st.success(_format_import_result(result))
                     st.rerun()
 
-            if st.button("从 data/origin 全量重建", key="rebuild_all", width="stretch"):
+            if st.button("从 data/origin 全量重建", key="rebuild_all", **stretch_kwargs()):
                 result = rebuild_all_data()
                 st.cache_data.clear()
                 st.success(
@@ -199,8 +213,8 @@ def _render_sidebar(master_df: pd.DataFrame) -> None:
 
         st.markdown("---")
         st.markdown("### 快捷链接")
-        st.link_button("线上应用", "https://my-account.streamlit.app/", width="stretch")
-        st.link_button("GitHub", "https://github.com/Cupid-qrq/personal-account-app", width="stretch")
+        st.link_button("线上应用", "https://my-account.streamlit.app/", **stretch_kwargs())
+        st.link_button("GitHub", "https://github.com/Cupid-qrq/personal-account-app", **stretch_kwargs())
 
 
 def _render_kpis(kpis: dict) -> None:

@@ -6,6 +6,20 @@ import pandas as pd
 import streamlit as st
 
 
+def _streamlit_minor_version() -> tuple[int, int]:
+    parts = st.__version__.split(".")[:2]
+    try:
+        return int(parts[0]), int(parts[1])
+    except (IndexError, ValueError):
+        return (0, 0)
+
+
+def stretch_kwargs() -> dict[str, object]:
+    if _streamlit_minor_version() >= (1, 56):
+        return {"width": "stretch"}
+    return {"use_container_width": True}
+
+
 def money(value: float) -> str:
     return f"¥{float(value):,.0f}"
 
@@ -124,4 +138,4 @@ def dataframe_money(df: pd.DataFrame, money_columns: list[str]) -> None:
         for col in money_columns
         if col in df.columns
     }
-    st.dataframe(df, hide_index=True, width="stretch", column_config=config)
+    st.dataframe(df, hide_index=True, column_config=config, **stretch_kwargs())
