@@ -17,6 +17,7 @@ from src.analytics import (
     monthly_overview,
     monthly_trend,
 )
+from src.data_quality import dataset_profile, quality_warnings, storage_profile
 from src.data_pipeline import load_master
 
 
@@ -35,19 +36,19 @@ def main() -> None:
         with sqlite3.connect(DB_FILE) as conn:
             sqlite_rows = int(pd.read_sql_query("select count(*) as n from ledger_records", conn).iloc[0]["n"])
 
-    duplicate_ids = int(master["ID"].duplicated().sum()) if "ID" in master.columns else 0
-    blank_ids = int((master["ID"].fillna("").astype(str).str.strip() == "").sum()) if "ID" in master.columns else 0
-    if duplicate_ids or blank_ids:
-        raise SystemExit(f"invalid IDs: duplicate={duplicate_ids}, blank={blank_ids}")
-
-    if sqlite_rows is not None and sqlite_rows != csv_rows:
-        raise SystemExit(f"row mismatch: sqlite={sqlite_rows}, csv={csv_rows}")
+    profile = dataset_profile(master)
+    storage = storage_profile(MASTER_FILE, sqlite_rows)
+    warnings = quality_warnings(profile, storage)
+    if warnings:
+        raise SystemExit("; ".join(warnings))
 
     months = sorted(master["月份"].dropna().unique().tolist())
     latest_month = months[-1]
     month_df = master[master["月份"] == latest_month]
 
     print(f"rows={len(master)}")
+    print(f"csv_rows={csv_rows}")
+    print(f"sqlite_rows={sqlite_rows}")
     print("months=" + ",".join(months))
     print(master["月份"].value_counts().sort_index().to_string())
     print(f"latest_month={latest_month}")

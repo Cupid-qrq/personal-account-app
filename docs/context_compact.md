@@ -1,82 +1,65 @@
-# Context Compact - 账本管理系统 v0.10
+# Context Compact - 账本管理系统 v1.0
 
 更新时间: 2026-05-31
 
 ## 项目目标
-- 完成账单 CSV 的导入、清洗、去重、按月归档、主表汇总。
-- 提供可视化分析与消费洞察，支持管理员/编辑者上传与访客查看。
-- 在移动端和桌面端保持可用且简洁的分析体验。
+- 将个人账单 CSV 转化为可审计、可重建、可分析的 SQLite 主数据资产。
+- 在 Streamlit Cloud 上提供现代化财务工作台，兼顾视觉质感、信息密度和家庭成员可访问性。
+- 支持日常上传、origin 全量重建、月度归档、数据质量检查和多维分析。
 
 ## 当前版本状态
-- 版本: v0.10（5月数据补齐 + 导入链路升级）
+- 版本: v1.0（全面 UI / 数据 / 架构重构）
 - 线上地址: https://my-account.streamlit.app/
 - 主入口: app.py（薄入口）
-- UI 层: src/ui_app.py
-- 分析模块: src/analytics.py
+- 页面编排: src/ui_app.py
+- UI 主题: src/styles.py
+- UI 组件: src/ui_components.py
+- 数据服务门面: src/data_service.py
 - 数据流水线: src/data_pipeline.py
+- 数据质量: src/data_quality.py
 - 数据契约: src/data_contract.py
 - SQLite 存储: src/sqlite_store.py
+- 分析模块: src/analytics.py
 - 认证模块: src/auth.py
-- 配置中心: src/config.py
-- 数据健康检查: scripts/validate_data.py
+- 架构说明: docs/架构说明.md
 
-## v0.10 核心更新
-1. 导入 `data/origin/2026-05-31_204649.csv` 全量账单，主表增至 184 条。
-2. 导入结果拆分为扫描行数、规范化行数、新增行数、覆盖行数和主表总行数，避免把全量覆盖误报为新增。
-3. 批量扫描从根目录扩展到 `data/origin/`，符合当前数据文件管理方式。
-4. SQLite 从 CSV 回填时统一使用 `utf-8-sig`，降低 Windows 编码风险。
-5. 生产配置默认关闭 Streamlit 详细错误展示。
-6. 新增 `scripts/validate_data.py`，用于导入后的主库一致性和分析冒烟检查。
-
-## v0.9.1 关键基线
-1. 认证简化：内置 admin/parent 两个默认账号，无需配置 `LEDGER_USERS_JSON` 即可登录。
-2. 移除公开只读模式：必须登录才能访问，不再匿名暴露数据。
-3. CSV 编码修复：`pd.read_csv` 统一指定 `utf-8-sig` 编码，防止 Windows 乱码。
-
-## v0.9 关键基线
-1. 4月数据导入（42条，合计147条/5个月），收入分类别名映射（”收红包”→”红包”）。
-2. 深空科技主题 UI 刷新：色彩系统重构、CSS 收敛、卡片/按钮/标签页样式统一。
-3. 权限模型：admin/viewer 二角色（内置），可通过 `LEDGER_USERS_JSON` 扩展。
+## v1.0 核心更新
+1. UI 全面重写为 Notebook / Claude 风格浅色工作台，页面拆为总览、结构、预算与异常、节律、数据室。
+2. 新增 `src/styles.py` 和 `src/ui_components.py`，将视觉系统和 UI 组件从主页面拆出。
+3. 新增 `src/data_service.py`，集中暴露 UI 所需路径、导入、重建和数据状态接口。
+4. 新增 `src/data_quality.py`，提供主表 profile、CSV/SQLite 一致性和质量告警。
+5. `src/data_pipeline.py` 新增 `rebuild_from_origin()`，支持从 `data/origin` 全量重建 SQLite、CSV 快照和月度归档。
+6. `src/sqlite_store.py` 新增 `replace_records()`，支持完整替换主表。
+7. `src/analytics.py` 新增现金流、分类动量、预算压力、星期画像、日度累计、二级分类穿透和自动摘要。
+8. 新增 `scripts/rebuild_data.py` 和升级 `scripts/validate_data.py`，形成数据重建和验证闭环。
+9. README、部署指南、迭代日志、项目 workflow 和架构说明同步 v1.0。
 
 ## 数据现状
-- 主表: data/processed/ledger_master.csv + .sqlite3
+- 主表: data/processed/ledger_master.csv + ledger_master.sqlite3
 - 主表记录数: 184
 - 覆盖月份: 2026-01 ~ 2026-05
-- 原始资料基线: data/origin/2026-05-31_204649.csv, data/origin/2026-05-05.csv, data/origin/项目需求.md
+- origin 源文件: 3 个 CSV
 - 月份分布:
   - 2026-01: 35
   - 2026-02: 25
   - 2026-03: 39
   - 2026-04: 42
   - 2026-05: 43
-- 归档文件: data/archive/2026-{01..05}.csv
 
-## 功能结构
-- 登录与权限:
-  - admin: 上传/导入 + 全量查看
-  - editor: 上传/导入 + 分析查看
-  - viewer: 只读查看
-- 主界面板块:
-  - 财务概览（5指标 + 健康指数 + 消费效率 + 智能洞察）
-  - 分析中心（趋势与同比 / 结构透视 / 消费节律 / 异常检测）
-  - 明细分析（支出分析 / 消费习惯 / 详细账目 / 预算建议）
+## 操作命令
+```bash
+python scripts\rebuild_data.py
+python scripts\validate_data.py
+streamlit run app.py
+```
 
 ## 已知限制
-- SQLite 写入以单进程顺序更新为前提，暂未做并发锁优化。
-- 内置默认账号（admin/parent）密码为简单密码，部署后建议通过 `LEDGER_USERS_JSON` 覆盖。
+- SQLite 写入仍以单进程顺序更新为前提，暂未做并发锁或服务端事务队列。
+- 内置默认账号仅适合初始部署，线上应通过 `LEDGER_USERS_JSON` 覆盖。
+- 当前分析为规则和统计模型，未接入外部 LLM。
 
-## 建议下一步
-1. 增加最小自动化回归测试（认证、导入、月度分析）。
-2. 增加一键重建 SQLite/CSV 快照脚本，便于数据恢复。
-3. 继续拆分 `src/ui_app.py` 页面模块，降低单文件复杂度。
-
-## 迭代发布工作流（强制）
-1. 完成功能或修复后，先执行基础校验（语法/关键数据检查）。
-2. 校验通过后，执行 commit 并 push 到远程主分支。
-3. 若线上连接 Streamlit Cloud，push 后检查自动部署状态。
-4. README 仅保留对外发布信息，不暴露内部调试细节。
-5. 根目录保持精简，原始 CSV 与需求文档统一放在 data/origin/。
-
-## iteration-workflow Skill
-- 项目级 skill：.github/skills/iteration-workflow/SKILL.md
-- 标准流程：分析 → 实现 → 校验 → 文档/记忆 → commit + push
+## 下一步建议
+1. 为 `data_pipeline` 和 `analytics` 增加 pytest 自动化测试。
+2. 增加可下载 Excel/PDF 月报。
+3. 根据更多月份数据补充同比、季度、年度和滚动预算模型。
+4. 视并发访问情况评估 PostgreSQL 或托管数据层。

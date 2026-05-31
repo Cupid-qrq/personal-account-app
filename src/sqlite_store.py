@@ -105,6 +105,31 @@ def save_records(db_file: Path, df_new: pd.DataFrame) -> pd.DataFrame:
     return merged
 
 
+def replace_records(db_file: Path, df: pd.DataFrame) -> pd.DataFrame:
+    """用给定数据完整替换 SQLite 主表，并返回标准化结果。"""
+    db_file.parent.mkdir(parents=True, exist_ok=True)
+
+    frame = df.copy()
+    if "ID" in frame.columns:
+        frame = frame.drop_duplicates(subset=["ID"], keep="last")
+
+    if "时间" in frame.columns:
+        frame["时间"] = pd.to_datetime(frame["时间"], errors="coerce")
+        frame = frame[frame["时间"].notna()].sort_values("时间", na_position="last")
+
+    for col in CANONICAL_COLUMNS:
+        if col not in frame.columns:
+            frame[col] = ""
+
+    frame = frame[CANONICAL_COLUMNS].copy().reset_index(drop=True)
+
+    sqlite_frame = _normalize_for_sqlite(frame)
+    with sqlite3.connect(db_file) as conn:
+        sqlite_frame.to_sql(SQLITE_TABLE_NAME, conn, if_exists="replace", index=False)
+
+    return frame
+
+
 def bootstrap_from_csv(csv_file: Path, db_file: Path) -> pd.DataFrame:
     """用 CSV 快照初始化 SQLite 主表。"""
     if not csv_file.exists():

@@ -17,7 +17,7 @@ from .config import (
     REQUIRED_COLUMNS,
 )
 from .data_contract import CANONICAL_COLUMNS, SQLITE_DB_SUFFIX
-from .sqlite_store import bootstrap_from_csv, export_snapshot, load_records, save_records
+from .sqlite_store import bootstrap_from_csv, export_snapshot, load_records, replace_records, save_records
 
 
 def _read_csv_with_fallback(content: bytes) -> pd.DataFrame:
@@ -132,12 +132,38 @@ def save_month_archives(df: pd.DataFrame, archive_dir: Path) -> List[str]:
     return sorted(months_saved)
 
 
+def replace_month_archives(df: pd.DataFrame, archive_dir: Path) -> List[str]:
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    months_saved: List[str] = []
+
+    if df.empty:
+        return months_saved
+
+    for month, group in df.groupby("月份"):
+        target = archive_dir / f"{month}.csv"
+        output = group.copy()
+        if "时间" in output.columns:
+            output = _normalize_time_column(output).sort_values("时间", na_position="last")
+        output.to_csv(target, index=False, encoding="utf-8-sig")
+        months_saved.append(month)
+
+    return sorted(months_saved)
+
+
 def save_master(df: pd.DataFrame, master_file: Path) -> int:
     master_file.parent.mkdir(parents=True, exist_ok=True)
     db_file = master_file.with_suffix(SQLITE_DB_SUFFIX)
     merged = save_records(db_file, df)
     export_snapshot(merged, master_file)
     return len(merged)
+
+
+def replace_master(df: pd.DataFrame, master_file: Path) -> int:
+    master_file.parent.mkdir(parents=True, exist_ok=True)
+    db_file = master_file.with_suffix(SQLITE_DB_SUFFIX)
+    frame = replace_records(db_file, df)
+    export_snapshot(frame, master_file)
+    return len(frame)
 
 
 def _id_set(df: pd.DataFrame) -> Set[str]:
@@ -208,6 +234,49 @@ def discover_root_csv_files(project_root: Path) -> List[Path]:
             candidates.append(p)
 
     return sorted(set(candidates))
+
+
+def discover_origin_csv_files(origin_dir: Path) -> List[Path]:
+    if not origin_dir.exists():
+        return []
+    return sorted(p for p in origin_dir.glob("*.csv") if not p.name.startswith("~"))
+
+
+def rebuild_from_origin(origin_dir: Path, archive_dir: Path, master_file: Path) -> Dict[str, object]:
+    files = discover_origin_csv_files(origin_dir)
+    if not files:
+        current = load_master(master_file)
+        return {
+            "source_files": [],
+            "raw_rows": 0,
+            "normalized_rows": 0,
+            "master_rows": len(current),
+            "months_saved": [],
+        }
+
+    raw_rows = 0
+    frames: List[pd.DataFrame] = []
+    for file_path in files:
+        raw_df = _read_csv_with_fallback(file_path.read_bytes())
+        raw_rows += len(raw_df)
+        normalized = normalize_records(raw_df)
+        if not normalized.empty:
+            frames.append(normalized)
+
+    combined = pd.concat(frames, ignore_index=True, sort=False) if frames else pd.DataFrame(columns=CANONICAL_COLUMNS)
+    if not combined.empty:
+        combined = combined.sort_values("时间").drop_duplicates(subset=["ID"], keep="last").reset_index(drop=True)
+
+    months_saved = replace_month_archives(combined, archive_dir)
+    total_rows = replace_master(combined, master_file)
+
+    return {
+        "source_files": [str(p) for p in files],
+        "raw_rows": raw_rows,
+        "normalized_rows": len(combined),
+        "master_rows": total_rows,
+        "months_saved": months_saved,
+    }
 
 
 def load_master(master_file: Path) -> pd.DataFrame:

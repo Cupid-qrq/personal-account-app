@@ -9,7 +9,7 @@ description: "Use when managing this ledger project iteration workflow: analyze 
 Use this skill when working on the ledger project to keep each iteration consistent, release-ready, and documented.
 
 ## When to Use
-- Fixing bugs in `src/ui_app.py`, `src/analytics.py`, or `src/data_pipeline.py`
+- Fixing bugs in `src/ui_app.py`, `src/styles.py`, `src/ui_components.py`, `src/analytics.py`, or `src/data_pipeline.py`
 - Adding UI/visual improvements or monthly analysis features
 - Packaging a release version
 - Updating README, docs, context compression, and repo memory
@@ -21,7 +21,8 @@ Use this skill when working on the ledger project to keep each iteration consist
 3. Keep changes minimal and aligned with existing style.
 4. After edits, run validation:
    - syntax checks
-   - data sanity checks if data files changed
+   - `python scripts\rebuild_data.py` when data flow, archives, or origin files changed
+   - `python scripts\validate_data.py` for every release
    - error scan for edited files
 5. Update release notes and context docs when behavior changes.
 6. Keep root directory clean:
@@ -70,13 +71,19 @@ Use this skill when working on the ledger project to keep each iteration consist
 ## Project Conventions
 - `app.py` is a thin startup wrapper that imports `src/ui_app.py`.
 - `src/ui_app.py` owns Streamlit page composition and interaction.
+- `src/styles.py` owns the v1.0 visual system.
+- `src/ui_components.py` owns reusable Streamlit UI components and formatting.
+- `src/data_service.py` is the UI-facing data service layer.
 - `src/data_pipeline.py` owns import, normalization, archiving, and master-table merge logic.
 - `src/sqlite_store.py` owns SQLite master persistence.
+- `src/data_quality.py` owns data quality profile and storage consistency warnings.
 - `src/data_contract.py` is the single source of truth for canonical schema.
 - `src/analytics.py` owns aggregation and insight calculations.
 - Keep baseline raw assets under `data/origin/`.
 - Keep CSV archives under `data/archive/` and processed snapshots under `data/processed/`.
 - Keep external documentation concise and user-facing.
+- For v1.0+ UI work, preserve the five workspace model: 总览, 结构, 预算与异常, 节律, 数据室.
+- Use Streamlit AppTest or a live Streamlit HTTP smoke test after major UI changes.
 
 ## Release Checklist
 - [ ] Code validated

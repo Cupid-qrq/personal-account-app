@@ -710,3 +710,197 @@ def generate_smart_insights(df: pd.DataFrame, selected_month: str) -> Dict[str, 
         "confidence": "高" if len(insights) >= 3 else "中",
         "generated_at": str(pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"))
     }
+
+
+# ===== v1.0 专业分析视图 =====
+
+def _expense_frame(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame()
+    work = df[df["类型"] == "支出"].copy()
+    if "时间" in work.columns:
+        work["时间"] = pd.to_datetime(work["时间"], errors="coerce")
+        work = work[work["时间"].notna()].copy()
+    return work
+
+
+def _income_frame(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame()
+    work = df[df["类型"] == "收入"].copy()
+    if "时间" in work.columns:
+        work["时间"] = pd.to_datetime(work["时间"], errors="coerce")
+        work = work[work["时间"].notna()].copy()
+    return work
+
+
+def executive_kpis(df: pd.DataFrame, selected_month: str) -> Dict[str, object]:
+    trend = monthly_trend(df)
+    month_df = filter_month(df, selected_month)
+    overview = monthly_overview(month_df)
+    mom = month_over_month(df, selected_month)
+    health = expense_health_index(df)
+    expense = overview["expense"]
+    income = overview["income"]
+    savings_rate = round((overview["balance"] / income * 100), 2) if income > 0 else 0.0
+
+    rank = 0
+    if not trend.empty and selected_month in set(trend["月份"]):
+        ranked = trend.sort_values("支出", ascending=False).reset_index(drop=True)
+        rank = int(ranked.index[ranked["月份"] == selected_month][0] + 1)
+
+    return {
+        "income": income,
+        "expense": expense,
+        "balance": overview["balance"],
+        "records": overview["records"],
+        "savings_rate": savings_rate,
+        "expense_rank": rank,
+        "month_count": int(len(trend)),
+        "expense_delta": mom.get("expense_delta", 0.0),
+        "expense_delta_pct": mom.get("expense_delta_pct", 0.0),
+        "health_index": health.get("index", 0),
+        "health_grade": str(health.get("grade", "无数据")),
+    }
+
+
+def cashflow_statement(df: pd.DataFrame) -> pd.DataFrame:
+    trend = monthly_trend(df)
+    if trend.empty:
+        return pd.DataFrame(columns=["月份", "收入", "支出", "结余", "储蓄率", "累计结余"])
+    out = trend.copy()
+    out["累计结余"] = out["结余"].cumsum().round(2)
+    return out
+
+
+def category_momentum(df: pd.DataFrame, selected_month: str) -> pd.DataFrame:
+    trend = monthly_category_share(df)
+    if trend.empty:
+        return pd.DataFrame(columns=["分类", "本月支出", "上月支出", "变化", "变化率", "本月占比"])
+
+    months = sorted(trend["月份"].unique().tolist())
+    if selected_month not in months:
+        return pd.DataFrame(columns=["分类", "本月支出", "上月支出", "变化", "变化率", "本月占比"])
+    idx = months.index(selected_month)
+    previous_month = months[idx - 1] if idx > 0 else None
+
+    current = trend[trend["月份"] == selected_month][["分类", "金额", "占比"]].rename(
+        columns={"金额": "本月支出", "占比": "本月占比"}
+    )
+    if previous_month:
+        previous = trend[trend["月份"] == previous_month][["分类", "金额"]].rename(columns={"金额": "上月支出"})
+    else:
+        previous = pd.DataFrame(columns=["分类", "上月支出"])
+
+    out = current.merge(previous, on="分类", how="outer").fillna(0.0)
+    out["变化"] = (out["本月支出"] - out["上月支出"]).round(2)
+    out["变化率"] = out.apply(
+        lambda r: round(r["变化"] / r["上月支出"] * 100, 2) if r["上月支出"] > 0 else 0.0,
+        axis=1,
+    )
+    return out.sort_values("本月支出", ascending=False).reset_index(drop=True)
+
+
+def budget_pressure(df: pd.DataFrame, selected_month: str) -> pd.DataFrame:
+    expense = _expense_frame(df)
+    if expense.empty:
+        return pd.DataFrame(columns=["分类", "本月支出", "历史月均", "建议预算", "压力指数", "状态"])
+
+    selected = expense[expense["月份"] == selected_month]
+    history = expense[expense["月份"] != selected_month]
+    current = selected.groupby("分类", as_index=False)["金额"].sum().rename(columns={"金额": "本月支出"})
+
+    if history.empty:
+        baseline = current[["分类", "本月支出"]].rename(columns={"本月支出": "历史月均"})
+    else:
+        monthly = history.groupby(["月份", "分类"], as_index=False)["金额"].sum()
+        baseline = monthly.groupby("分类", as_index=False)["金额"].mean().rename(columns={"金额": "历史月均"})
+
+    out = current.merge(baseline, on="分类", how="outer").fillna(0.0)
+    out["建议预算"] = out["历史月均"].where(out["历史月均"] > 0, out["本月支出"]).mul(1.05).round(2)
+    out["压力指数"] = out.apply(
+        lambda r: round(r["本月支出"] / r["建议预算"] * 100, 1) if r["建议预算"] > 0 else 0.0,
+        axis=1,
+    )
+
+    def _status(value: float) -> str:
+        if value >= 115:
+            return "超预算"
+        if value >= 90:
+            return "接近上限"
+        return "健康"
+
+    out["状态"] = out["压力指数"].map(_status)
+    return out.sort_values("压力指数", ascending=False).reset_index(drop=True)
+
+
+def weekday_profile(df: pd.DataFrame, selected_month: str) -> pd.DataFrame:
+    expense = _expense_frame(filter_month(df, selected_month))
+    if expense.empty:
+        return pd.DataFrame(columns=["周几", "金额", "笔数", "日均"])
+
+    weekday_map = {0: "周一", 1: "周二", 2: "周三", 3: "周四", 4: "周五", 5: "周六", 6: "周日"}
+    expense["周几"] = expense["时间"].dt.weekday.map(weekday_map)
+    grouped = expense.groupby("周几", as_index=False).agg(金额=("金额", "sum"), 笔数=("ID", "count"))
+    grouped["日均"] = grouped["金额"] / grouped["笔数"].replace(0, 1)
+    order = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+    grouped["周几"] = pd.Categorical(grouped["周几"], categories=order, ordered=True)
+    return grouped.sort_values("周几").reset_index(drop=True)
+
+
+def daily_cumulative_expense(df: pd.DataFrame, selected_month: str) -> pd.DataFrame:
+    expense = _expense_frame(filter_month(df, selected_month))
+    if expense.empty:
+        return pd.DataFrame(columns=["日期", "金额", "累计支出", "预算进度"])
+
+    expense["日期"] = expense["时间"].dt.date
+    daily = expense.groupby("日期", as_index=False)["金额"].sum()
+    daily["日期"] = pd.to_datetime(daily["日期"])
+    daily = daily.sort_values("日期").reset_index(drop=True)
+    daily["累计支出"] = daily["金额"].cumsum().round(2)
+    final_total = float(daily["累计支出"].iloc[-1]) if not daily.empty else 0.0
+    daily["预算进度"] = daily["累计支出"].apply(lambda v: round(v / final_total * 100, 2) if final_total else 0.0)
+    return daily
+
+
+def subcategory_pressure(df: pd.DataFrame, selected_month: str) -> pd.DataFrame:
+    expense = _expense_frame(filter_month(df, selected_month))
+    if expense.empty:
+        return pd.DataFrame(columns=["分类", "二级分类", "金额", "笔数", "均笔"])
+    grouped = (
+        expense.groupby(["分类", "二级分类"], as_index=False)
+        .agg(金额=("金额", "sum"), 笔数=("ID", "count"))
+        .sort_values("金额", ascending=False)
+    )
+    grouped["均笔"] = (grouped["金额"] / grouped["笔数"].replace(0, 1)).round(2)
+    return grouped.reset_index(drop=True)
+
+
+def anomaly_table(df: pd.DataFrame, selected_month: str) -> pd.DataFrame:
+    anomalies = anomaly_detection(filter_month(df, selected_month))
+    rows = anomalies.get("high_amount_anomalies", [])
+    if not rows:
+        return pd.DataFrame(columns=["日期", "分类", "二级分类", "金额", "备注"])
+    return pd.DataFrame(rows)
+
+
+def insight_brief(df: pd.DataFrame, selected_month: str) -> List[str]:
+    kpis = executive_kpis(df, selected_month)
+    momentum = category_momentum(df, selected_month)
+    pressure = budget_pressure(df, selected_month)
+    brief: List[str] = []
+
+    brief.append(
+        f"{selected_month} 收入 ¥{kpis['income']:.0f}，支出 ¥{kpis['expense']:.0f}，结余 ¥{kpis['balance']:.0f}，储蓄率 {kpis['savings_rate']:.1f}%。"
+    )
+    if kpis["expense_rank"]:
+        brief.append(f"本月支出在 {kpis['month_count']} 个月中排名第 {kpis['expense_rank']}，环比 {kpis['expense_delta_pct']:+.1f}%。")
+    if not momentum.empty:
+        top = momentum.iloc[0]
+        brief.append(f"最大支出分类是 {top['分类']}，本月 ¥{float(top['本月支出']):.0f}，占比 {float(top['本月占比']):.1f}%。")
+    if not pressure.empty:
+        watch = pressure[pressure["状态"] != "健康"]
+        if not watch.empty:
+            cats = "、".join(watch["分类"].astype(str).head(3).tolist())
+            brief.append(f"预算压力需要关注：{cats}。")
+    return brief[:5]
