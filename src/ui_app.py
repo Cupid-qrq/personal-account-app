@@ -18,25 +18,35 @@ import streamlit as st
 
 from src.analytics import (
     anomaly_table,
+    account_flow,
     budget_pressure,
     cashflow_statement,
+    category_month_matrix,
     category_momentum,
+    category_treemap_data,
     daily_cumulative_expense,
     executive_kpis,
     expense_by_category,
     generate_budget_suggestion,
     insight_brief,
+    mining_summary,
+    monthly_scorecard,
     monthly_category_share,
     monthly_overview,
+    pareto_by_category,
+    record_density_calendar,
     subcategory_pressure,
+    top_transactions,
+    transaction_distribution,
     weekday_profile,
 )
 from src.auth import authenticate_user, can_upload, get_user_permissions
+from src.charting import PALETTE, add_reference_band, apply_chart_theme
 from src.config import APP_NAME, APP_VERSION
 from src.data_pipeline import discover_origin_csv_files
 from src.data_service import ORIGIN_DIR, data_status, import_local_file, import_upload, load_ledger, rebuild_all_data
 from src.styles import apply_v1_theme
-from src.ui_components import chips, dataframe_money, health_bar, hero, metric_card, money, note, pct, plain_grade, section
+from src.ui_components import chips, dataframe_money, health_bar, hero, insight_card, metric_card, money, note, pct, plain_grade, rank_list, section
 
 
 st.set_page_config(
@@ -70,6 +80,10 @@ def _plot_layout(height: int = 330) -> dict:
         "margin": {"l": 10, "r": 10, "t": 30, "b": 20},
         "legend": {"orientation": "h", "y": 1.08, "x": 0},
     }
+
+
+def _show_chart(fig: go.Figure, height: int = 340, showlegend: bool = True) -> None:
+    st.plotly_chart(apply_chart_theme(fig, height=height, showlegend=showlegend), width="stretch")
 
 
 def _login_page() -> None:
@@ -213,8 +227,8 @@ def _render_overview(master_df: pd.DataFrame, selected_month: str) -> None:
         fig.add_trace(go.Bar(x=cashflow["月份"], y=cashflow["收入"], name="收入", marker_color="#60735f"))
         fig.add_trace(go.Bar(x=cashflow["月份"], y=cashflow["支出"], name="支出", marker_color="#b66d38"))
         fig.add_trace(go.Scatter(x=cashflow["月份"], y=cashflow["累计结余"], name="累计结余", mode="lines+markers", line=dict(color="#315f72", width=3)))
-        fig.update_layout(**_plot_layout(380), barmode="group")
-        st.plotly_chart(fig, width="stretch")
+        fig.update_layout(barmode="group")
+        _show_chart(fig, height=380)
 
     with c2:
         section("本月判断", "自动摘要本月财务状态，帮助快速定位需要关注的部分。")
@@ -224,26 +238,43 @@ def _render_overview(master_df: pd.DataFrame, selected_month: str) -> None:
         health_bar(kpis["health_index"])
         st.caption(f"{kpis['health_index']} / 100 · {plain_grade(kpis['health_grade'])}")
 
+    section("月度 Scorecard", "以表格形式同时看收入、支出、结余、储蓄率、环比和累计结余。")
+    scorecard = monthly_scorecard(master_df)
+    dataframe_money(scorecard, ["收入", "支出", "结余", "累计结余", "结余环比"])
+
 
 def _render_structure(master_df: pd.DataFrame, selected_month: str) -> None:
     month_df = master_df[master_df["月份"] == selected_month]
     category = expense_by_category(month_df)
     momentum = category_momentum(master_df, selected_month)
     subcat = subcategory_pressure(master_df, selected_month)
+    treemap = category_treemap_data(master_df, selected_month)
 
     c1, c2 = st.columns([0.95, 1.2], gap="large")
     with c1:
         section("分类结构", "观察本月支出构成和集中度。")
         if not category.empty:
-            fig = px.pie(category, names="分类", values="金额", hole=0.58, color_discrete_sequence=["#b66d38", "#60735f", "#315f72", "#8f6f4f"])
-            fig.update_layout(**_plot_layout(360), showlegend=True)
-            st.plotly_chart(fig, width="stretch")
+            fig = px.pie(category, names="分类", values="金额", hole=0.58, color_discrete_sequence=PALETTE)
+            fig.update_traces(textposition="inside", textinfo="percent+label", marker=dict(line=dict(color="rgba(255,255,255,0.75)", width=2)))
+            _show_chart(fig, height=360)
     with c2:
         section("分类动量", "对比上月支出，识别本月增长或收缩的支出类别。")
         dataframe_money(momentum, ["本月支出", "上月支出", "变化"])
 
     section("二级分类穿透", "从一级分类进入更细颗粒度的消费结构。")
     dataframe_money(subcat, ["金额", "均笔"])
+
+    section("分类空间图", "用 treemap 展示一级与二级分类的面积关系，比传统饼图更适合观察长尾。")
+    if not treemap.empty:
+        fig = px.treemap(
+            treemap,
+            path=["分类", "二级分类"],
+            values="金额",
+            color="金额",
+            color_continuous_scale=["#f1e6d6", "#b66d38", "#315f72"],
+        )
+        fig.update_layout(coloraxis_showscale=False)
+        _show_chart(fig, height=420, showlegend=False)
 
 
 def _render_pressure(master_df: pd.DataFrame, selected_month: str) -> None:
@@ -266,10 +297,94 @@ def _render_pressure(master_df: pd.DataFrame, selected_month: str) -> None:
         dataframe_money(anomalies, ["金额"])
 
 
+def _render_mining(master_df: pd.DataFrame, selected_month: str) -> None:
+    top = top_transactions(master_df, selected_month, 10)
+    pareto = pareto_by_category(master_df, selected_month)
+    distribution = transaction_distribution(master_df, selected_month)
+    flow = account_flow(master_df, selected_month)
+    matrix = category_month_matrix(master_df)
+
+    section("数据挖掘摘要", "聚合 TopK、Pareto、金额分布和账户流，定位本月最值得关注的消费行为。")
+    summary = mining_summary(master_df, selected_month)
+    cols = st.columns(max(1, min(3, len(summary))))
+    for col, item in zip(cols, summary):
+        with col:
+            insight_card("Mining Signal", item, "blue")
+
+    c1, c2 = st.columns([1.1, 0.9], gap="large")
+    with c1:
+        section("TopK 消费记录", "按金额排序的本月最大支出，保留备注、账户和记账者。")
+        if top.empty:
+            st.info("本月暂无支出记录。")
+        else:
+            rank_items = [
+                (
+                    f"{row['分类']} / {row['二级分类']}",
+                    money(row["金额"]),
+                    f"{row['日期']} · {row.get('备注', '') or '无备注'}",
+                )
+                for _, row in top.head(6).iterrows()
+            ]
+            rank_list(rank_items)
+    with c2:
+        section("金额区间分布", "观察消费是由小额高频驱动，还是由大额低频驱动。")
+        if not distribution.empty:
+            fig = px.bar(
+                distribution,
+                x="金额区间",
+                y="笔数",
+                color="金额",
+                text="笔数",
+                color_continuous_scale=["#f1e6d6", "#b66d38", "#315f72"],
+            )
+            fig.update_layout(coloraxis_showscale=False)
+            _show_chart(fig, height=360, showlegend=False)
+
+    c3, c4 = st.columns([1, 1], gap="large")
+    with c3:
+        section("Pareto 贡献", "用累计占比识别真正决定本月支出的少数类别。")
+        if not pareto.empty:
+            fig = go.Figure()
+            fig.add_trace(go.Bar(x=pareto["分类"], y=pareto["金额"], name="金额", marker_color="#b66d38"))
+            fig.add_trace(
+                go.Scatter(
+                    x=pareto["分类"],
+                    y=pareto["累计占比"],
+                    name="累计占比",
+                    yaxis="y2",
+                    mode="lines+markers",
+                    line=dict(color="#315f72", width=3),
+                )
+            )
+            fig.update_layout(yaxis2=dict(overlaying="y", side="right", range=[0, 105], ticksuffix="%"))
+            add_reference_band(fig, 0, pareto["金额"].max() * 0.8 if len(pareto) else 1)
+            _show_chart(fig, height=360)
+    with c4:
+        section("账户流向", "按账户和收支类型聚合，帮助识别资金来源与支出账户。")
+        if not flow.empty:
+            fig = px.bar(flow, x="账户", y="金额", color="类型", barmode="group", text="笔数", color_discrete_sequence=PALETTE)
+            _show_chart(fig, height=360)
+
+    section("跨月分类矩阵", "每个分类在不同月份的金额分布，适合看长期结构变化。")
+    if not matrix.empty:
+        heat = matrix.set_index("分类")
+        fig = go.Figure(
+            data=go.Heatmap(
+                z=heat.values,
+                x=heat.columns,
+                y=heat.index,
+                colorscale=[[0, "#f6efe3"], [0.5, "#d6a06a"], [1, "#315f72"]],
+                hovertemplate="%{y} · %{x}<br>¥%{z:.0f}<extra></extra>",
+            )
+        )
+        _show_chart(fig, height=360, showlegend=False)
+
+
 def _render_rhythm(master_df: pd.DataFrame, selected_month: str) -> None:
     daily = daily_cumulative_expense(master_df, selected_month)
     weekday = weekday_profile(master_df, selected_month)
     share = monthly_category_share(master_df)
+    calendar = record_density_calendar(master_df, selected_month)
 
     c1, c2 = st.columns([1.25, 0.9], gap="large")
     with c1:
@@ -278,20 +393,34 @@ def _render_rhythm(master_df: pd.DataFrame, selected_month: str) -> None:
             fig = go.Figure()
             fig.add_trace(go.Bar(x=daily["日期"], y=daily["金额"], name="日支出", marker_color="#d6a06a"))
             fig.add_trace(go.Scatter(x=daily["日期"], y=daily["累计支出"], name="累计支出", mode="lines+markers", line=dict(color="#20201d", width=3)))
-            fig.update_layout(**_plot_layout(360))
-            st.plotly_chart(fig, width="stretch")
+            _show_chart(fig, height=360)
     with c2:
         section("星期画像", "识别不同星期的支出密度。")
         if not weekday.empty:
             fig = px.bar(weekday, x="周几", y="金额", text="笔数", color="金额", color_continuous_scale=["#e9dfcf", "#b66d38", "#315f72"])
-            fig.update_layout(**_plot_layout(360), showlegend=False, coloraxis_showscale=False)
-            st.plotly_chart(fig, width="stretch")
+            fig.update_layout(coloraxis_showscale=False)
+            _show_chart(fig, height=360, showlegend=False)
 
     section("跨月分类占比", "分类结构随月份变化，用于观察长期消费重心是否迁移。")
     if not share.empty:
-        fig = px.area(share, x="月份", y="占比", color="分类", groupnorm="percent", color_discrete_sequence=["#b66d38", "#60735f", "#315f72", "#8f6f4f"])
-        fig.update_layout(**_plot_layout(360))
-        st.plotly_chart(fig, width="stretch")
+        fig = px.area(share, x="月份", y="占比", color="分类", groupnorm="percent", color_discrete_sequence=PALETTE)
+        _show_chart(fig, height=360)
+
+    section("日历密度", "按周序与星期映射每天支出，呈现本月消费集中日。")
+    if not calendar.empty:
+        pivot = calendar.pivot(index="周序", columns="周几", values="金额").fillna(0)
+        pivot = pivot.reindex(columns=list(range(7)), fill_value=0)
+        labels = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+        fig = go.Figure(
+            data=go.Heatmap(
+                z=pivot.values,
+                x=labels,
+                y=[f"第{int(i)}周" for i in pivot.index],
+                colorscale=[[0, "#f6efe3"], [0.4, "#d6a06a"], [1, "#315f72"]],
+                hovertemplate="%{y} %{x}<br>¥%{z:.0f}<extra></extra>",
+            )
+        )
+        _show_chart(fig, height=320, showlegend=False)
 
 
 def _render_data_room(master_df: pd.DataFrame, selected_month: str) -> None:
@@ -351,14 +480,16 @@ def main() -> None:
         f"支出 {money(selected_overview['expense'])} · 结余 {money(selected_overview['balance'])}"
     )
 
-    tab_overview, tab_structure, tab_pressure, tab_rhythm, tab_data = st.tabs(
-        ["总览", "结构", "预算与异常", "节律", "数据室"]
+    tab_overview, tab_structure, tab_mining, tab_pressure, tab_rhythm, tab_data = st.tabs(
+        ["总览", "结构", "挖掘", "预算与异常", "节律", "数据室"]
     )
 
     with tab_overview:
         _render_overview(master_df, selected_month)
     with tab_structure:
         _render_structure(master_df, selected_month)
+    with tab_mining:
+        _render_mining(master_df, selected_month)
     with tab_pressure:
         _render_pressure(master_df, selected_month)
     with tab_rhythm:

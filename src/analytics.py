@@ -904,3 +904,121 @@ def insight_brief(df: pd.DataFrame, selected_month: str) -> List[str]:
             cats = "、".join(watch["分类"].astype(str).head(3).tolist())
             brief.append(f"预算压力需要关注：{cats}。")
     return brief[:5]
+
+
+def top_transactions(df: pd.DataFrame, selected_month: str, n: int = 10) -> pd.DataFrame:
+    expense = _expense_frame(filter_month(df, selected_month))
+    if expense.empty:
+        return pd.DataFrame(columns=["日期", "分类", "二级分类", "金额", "备注", "账户1", "记账者"])
+    expense["日期"] = expense["时间"].dt.date.astype(str)
+    cols = ["日期", "分类", "二级分类", "金额", "备注", "账户1", "记账者"]
+    for col in cols:
+        if col not in expense.columns:
+            expense[col] = ""
+    return expense[cols].sort_values("金额", ascending=False).head(n).reset_index(drop=True)
+
+
+def pareto_by_category(df: pd.DataFrame, selected_month: str) -> pd.DataFrame:
+    cat = expense_by_category(filter_month(df, selected_month))
+    if cat.empty:
+        return pd.DataFrame(columns=["分类", "金额", "累计占比", "贡献层级"])
+
+    total = float(cat["金额"].sum())
+    cat = cat.copy().sort_values("金额", ascending=False).reset_index(drop=True)
+    cat["累计占比"] = cat["金额"].cumsum().apply(lambda value: round(value / total * 100, 2) if total else 0.0)
+    cat["贡献层级"] = cat["累计占比"].apply(lambda value: "核心" if value <= 80 else "长尾")
+    return cat
+
+
+def transaction_distribution(df: pd.DataFrame, selected_month: str) -> pd.DataFrame:
+    expense = _expense_frame(filter_month(df, selected_month))
+    if expense.empty:
+        return pd.DataFrame(columns=["金额区间", "笔数", "金额"])
+
+    bins = [0, 20, 50, 100, 200, 500, 1000, float("inf")]
+    labels = ["0-20", "20-50", "50-100", "100-200", "200-500", "500-1000", "1000+"]
+    expense = expense.copy()
+    expense["金额区间"] = pd.cut(expense["金额"], bins=bins, labels=labels, right=False)
+    out = expense.groupby("金额区间", observed=False).agg(笔数=("ID", "count"), 金额=("金额", "sum")).reset_index()
+    out["金额"] = out["金额"].round(2)
+    return out
+
+
+def account_flow(df: pd.DataFrame, selected_month: str) -> pd.DataFrame:
+    month_df = filter_month(df, selected_month).copy()
+    if month_df.empty:
+        return pd.DataFrame(columns=["账户", "类型", "金额", "笔数"])
+    if "账户1" not in month_df.columns:
+        month_df["账户1"] = "未知账户"
+    month_df["账户"] = month_df["账户1"].fillna("").astype(str).str.strip().replace("", "未知账户")
+    out = (
+        month_df.groupby(["账户", "类型"], as_index=False)
+        .agg(金额=("金额", "sum"), 笔数=("ID", "count"))
+        .sort_values("金额", ascending=False)
+    )
+    out["金额"] = out["金额"].round(2)
+    return out.reset_index(drop=True)
+
+
+def category_treemap_data(df: pd.DataFrame, selected_month: str) -> pd.DataFrame:
+    expense = _expense_frame(filter_month(df, selected_month))
+    if expense.empty:
+        return pd.DataFrame(columns=["分类", "二级分类", "金额", "笔数"])
+    out = (
+        expense.groupby(["分类", "二级分类"], as_index=False)
+        .agg(金额=("金额", "sum"), 笔数=("ID", "count"))
+        .sort_values("金额", ascending=False)
+    )
+    out["金额"] = out["金额"].round(2)
+    return out.reset_index(drop=True)
+
+
+def monthly_scorecard(df: pd.DataFrame) -> pd.DataFrame:
+    trend = cashflow_statement(df)
+    if trend.empty:
+        return pd.DataFrame(columns=["月份", "收入", "支出", "结余", "储蓄率", "支出环比", "结余环比"])
+
+    out = trend.copy()
+    out["支出环比"] = out["支出"].pct_change().replace([float("inf"), float("-inf")], 0).fillna(0).mul(100).round(2)
+    out["结余环比"] = out["结余"].diff().fillna(0).round(2)
+    return out.reset_index(drop=True)
+
+
+def category_month_matrix(df: pd.DataFrame) -> pd.DataFrame:
+    share = monthly_category_share(df)
+    if share.empty:
+        return pd.DataFrame()
+    matrix = share.pivot_table(index="分类", columns="月份", values="金额", aggfunc="sum", fill_value=0)
+    return matrix.reset_index()
+
+
+def record_density_calendar(df: pd.DataFrame, selected_month: str) -> pd.DataFrame:
+    expense = _expense_frame(filter_month(df, selected_month))
+    if expense.empty:
+        return pd.DataFrame(columns=["日期", "金额", "笔数", "日", "周序", "周几"])
+    expense["日期"] = expense["时间"].dt.date
+    out = expense.groupby("日期", as_index=False).agg(金额=("金额", "sum"), 笔数=("ID", "count"))
+    dt = pd.to_datetime(out["日期"])
+    out["日"] = dt.dt.day
+    out["周序"] = ((out["日"] - 1) // 7 + 1).astype(int)
+    out["周几"] = dt.dt.weekday
+    return out.sort_values("日期").reset_index(drop=True)
+
+
+def mining_summary(df: pd.DataFrame, selected_month: str) -> List[str]:
+    top = top_transactions(df, selected_month, 3)
+    pareto = pareto_by_category(df, selected_month)
+    distribution = transaction_distribution(df, selected_month)
+    lines: List[str] = []
+
+    if not top.empty:
+        lead = top.iloc[0]
+        lines.append(f"最大单笔为 {lead['分类']} / {lead['二级分类']}，金额 ¥{float(lead['金额']):.0f}。")
+    if not pareto.empty:
+        core = pareto[pareto["贡献层级"] == "核心"]
+        core_names = "、".join(core["分类"].astype(str).tolist()) or str(pareto.iloc[0]["分类"])
+        lines.append(f"核心支出由 {core_names} 构成，前几类贡献接近 80%。")
+    if not distribution.empty:
+        peak = distribution.sort_values("笔数", ascending=False).iloc[0]
+        lines.append(f"最密集的交易金额区间是 {peak['金额区间']}，共 {int(peak['笔数'])} 笔。")
+    return lines[:4]

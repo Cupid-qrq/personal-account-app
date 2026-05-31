@@ -38,7 +38,7 @@ DEFAULT_INCOME_PRIMARY = "其它"
 
 # ===== 应用元数据 =====
 APP_NAME = "账本管理系统"
-APP_VERSION = "v1.0"
+APP_VERSION = "v1.1"
 APP_TITLE = f"{APP_NAME} | {APP_VERSION} - 智能财务分析"
 APP_DESCRIPTION = "个人账本数据整理、归档、分析与洞察工作台"
 

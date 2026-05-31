@@ -4,10 +4,10 @@ A Streamlit-based personal finance workbench for CSV ingestion, SQLite-backed st
 
 ## Main Features
 
-- v1.0 Notebook/Claude-inspired Streamlit workbench with a clean editorial dashboard
+- v1.1 Notebook/Claude-inspired Streamlit workbench with a clean editorial dashboard
 - CSV import with normalization, ID de-duplication, precise import stats, and `data/origin` full rebuild
 - SQLite master data with UTF-8 CSV snapshots and monthly archive mirrors
-- Professional analysis views: cash flow, category momentum, budget pressure, anomalies, cadence, and data quality
+- Professional analysis views: cash flow, category momentum, TopK records, Pareto, account flow, budget pressure, anomalies, cadence, and data quality
 - Built-in role-based login with `admin`, `editor`, and `viewer` capabilities
 
 ## Tech Stack

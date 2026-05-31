@@ -73,6 +73,7 @@ Use this skill when working on the ledger project to keep each iteration consist
 - `src/ui_app.py` owns Streamlit page composition and interaction.
 - `src/styles.py` owns the v1.0 visual system.
 - `src/ui_components.py` owns reusable Streamlit UI components and formatting.
+- `src/charting.py` owns the v1.1 Plotly chart theme and visual rules.
 - `src/data_service.py` is the UI-facing data service layer.
 - `src/data_pipeline.py` owns import, normalization, archiving, and master-table merge logic.
 - `src/sqlite_store.py` owns SQLite master persistence.
@@ -82,7 +83,7 @@ Use this skill when working on the ledger project to keep each iteration consist
 - Keep baseline raw assets under `data/origin/`.
 - Keep CSV archives under `data/archive/` and processed snapshots under `data/processed/`.
 - Keep external documentation concise and user-facing.
-- For v1.0+ UI work, preserve the five workspace model: 总览, 结构, 预算与异常, 节律, 数据室.
+- For v1.1+ UI work, preserve the six workspace model: 总览, 结构, 挖掘, 预算与异常, 节律, 数据室.
 - Use Streamlit AppTest or a live Streamlit HTTP smoke test after major UI changes.
 
 ## Release Checklist

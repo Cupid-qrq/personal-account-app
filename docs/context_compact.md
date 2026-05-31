@@ -1,4 +1,4 @@
-# Context Compact - 账本管理系统 v1.0
+# Context Compact - 账本管理系统 v1.1
 
 更新时间: 2026-05-31
 
@@ -8,7 +8,7 @@
 - 支持日常上传、origin 全量重建、月度归档、数据质量检查和多维分析。
 
 ## 当前版本状态
-- 版本: v1.0（全面 UI / 数据 / 架构重构）
+- 版本: v1.1（数据挖掘 + 图表展示升级）
 - 线上地址: https://my-account.streamlit.app/
 - 主入口: app.py（薄入口）
 - 页面编排: src/ui_app.py
@@ -20,10 +20,19 @@
 - 数据契约: src/data_contract.py
 - SQLite 存储: src/sqlite_store.py
 - 分析模块: src/analytics.py
+- 图表主题: src/charting.py
 - 认证模块: src/auth.py
 - 架构说明: docs/架构说明.md
 
-## v1.0 核心更新
+## v1.1 核心更新
+1. 新增 `src/charting.py`，统一 Plotly 图表主题、hover、网格、色板和参考带。
+2. `src/analytics.py` 新增 TopK 消费、Pareto、金额区间分布、账户流、分类 treemap、月度 scorecard、跨月分类矩阵、日历密度和挖掘摘要。
+3. `src/ui_app.py` 新增“挖掘”工作区，整合 TopK、金额分布、Pareto、账户流和分类矩阵。
+4. “结构”工作区增加分类空间图，“节律”工作区增加日历密度图，“总览”增加月度 scorecard。
+5. `src/ui_components.py` 新增 insight card 和 rank list，提升 TopK 和洞察展示质感。
+6. 应用版本升级到 v1.1。
+
+## v1.0 关键基线
 1. UI 全面重写为 Notebook / Claude 风格浅色工作台，页面拆为总览、结构、预算与异常、节律、数据室。
 2. 新增 `src/styles.py` 和 `src/ui_components.py`，将视觉系统和 UI 组件从主页面拆出。
 3. 新增 `src/data_service.py`，集中暴露 UI 所需路径、导入、重建和数据状态接口。
@@ -57,6 +66,7 @@ streamlit run app.py
 - SQLite 写入仍以单进程顺序更新为前提，暂未做并发锁或服务端事务队列。
 - 内置默认账号仅适合初始部署，线上应通过 `LEDGER_USERS_JSON` 覆盖。
 - 当前分析为规则和统计模型，未接入外部 LLM。
+- Figma skill 已用于设计流程约束；当前会话没有可调用 Figma MCP 工具，因此设计落地在代码与文档中。
 
 ## 下一步建议
 1. 为 `data_pipeline` 和 `analytics` 增加 pytest 自动化测试。

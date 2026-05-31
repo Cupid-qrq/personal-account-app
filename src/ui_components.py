@@ -64,6 +64,36 @@ def metric_card(label: str, value: str, caption: str) -> None:
     )
 
 
+def insight_card(title: str, body: str, tone: str = "neutral") -> None:
+    st.markdown(
+        f"""
+<div class="v1-insight v1-insight-{tone}">
+  <div class="v1-insight-title">{title}</div>
+  <div class="v1-insight-body">{body}</div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def rank_list(items: list[tuple[str, str, str]]) -> None:
+    rows = []
+    for index, (title, value, caption) in enumerate(items, 1):
+        rows.append(
+            f"""
+<div class="v1-rank-row">
+  <div class="v1-rank-index">{index:02d}</div>
+  <div class="v1-rank-main">
+    <div class="v1-rank-title">{title}</div>
+    <div class="v1-rank-caption">{caption}</div>
+  </div>
+  <div class="v1-rank-value">{value}</div>
+</div>
+            """
+        )
+    st.markdown('<div class="v1-rank-list">' + "".join(rows) + "</div>", unsafe_allow_html=True)
+
+
 def section(title: str, subtitle: str = "") -> None:
     st.markdown(
         f"""
