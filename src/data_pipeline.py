@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Set
 
 import pandas as pd
 
@@ -140,42 +140,74 @@ def save_master(df: pd.DataFrame, master_file: Path) -> int:
     return len(merged)
 
 
+def _id_set(df: pd.DataFrame) -> Set[str]:
+    if df.empty or "ID" not in df.columns:
+        return set()
+    return set(df["ID"].fillna("").astype(str).str.strip()) - {""}
+
+
+def _merge_stats(before: pd.DataFrame, normalized: pd.DataFrame, after_rows: int) -> Dict[str, object]:
+    before_ids = _id_set(before)
+    normalized_ids = _id_set(normalized)
+    existing_ids = normalized_ids & before_ids
+    new_ids = normalized_ids - before_ids
+
+    return {
+        "normalized_rows": len(normalized),
+        "new_rows": len(new_ids),
+        "updated_rows": len(existing_ids),
+        "master_rows": after_rows,
+    }
+
+
 def import_csv_file(file_path: Path, archive_dir: Path, master_file: Path) -> Dict[str, object]:
     content = file_path.read_bytes()
     raw_df = _read_csv_with_fallback(content)
     normalized = normalize_records(raw_df)
+    before = load_master(master_file)
     months_saved = save_month_archives(normalized, archive_dir)
     total_rows = save_master(normalized, master_file)
+    stats = _merge_stats(before, normalized, total_rows)
 
     return {
         "source": str(file_path),
-        "imported_rows": len(normalized),
+        "raw_rows": len(raw_df),
+        "imported_rows": stats["new_rows"],
+        **stats,
         "months_saved": months_saved,
-        "master_rows": total_rows,
     }
 
 
 def import_csv_bytes(file_content: bytes, archive_dir: Path, master_file: Path, source_name: str = "upload") -> Dict[str, object]:
     raw_df = _read_csv_with_fallback(file_content)
     normalized = normalize_records(raw_df)
+    before = load_master(master_file)
     months_saved = save_month_archives(normalized, archive_dir)
     total_rows = save_master(normalized, master_file)
+    stats = _merge_stats(before, normalized, total_rows)
 
     return {
         "source": source_name,
-        "imported_rows": len(normalized),
+        "raw_rows": len(raw_df),
+        "imported_rows": stats["new_rows"],
+        **stats,
         "months_saved": months_saved,
-        "master_rows": total_rows,
     }
 
 
 def discover_root_csv_files(project_root: Path) -> List[Path]:
-    candidates = []
-    for p in project_root.glob("*.csv"):
-        if p.name.startswith("~"):
+    candidates: List[Path] = []
+    search_dirs = [project_root, project_root / "data" / "origin"]
+
+    for search_dir in search_dirs:
+        if not search_dir.exists():
             continue
-        candidates.append(p)
-    return sorted(candidates)
+        for p in search_dir.glob("*.csv"):
+            if p.name.startswith("~"):
+                continue
+            candidates.append(p)
+
+    return sorted(set(candidates))
 
 
 def load_master(master_file: Path) -> pd.DataFrame:

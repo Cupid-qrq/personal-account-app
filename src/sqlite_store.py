@@ -110,7 +110,7 @@ def bootstrap_from_csv(csv_file: Path, db_file: Path) -> pd.DataFrame:
     if not csv_file.exists():
         return _empty_frame()
 
-    frame = pd.read_csv(csv_file)
+    frame = pd.read_csv(csv_file, encoding="utf-8-sig")
     return save_records(db_file, frame)
 
 

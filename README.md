@@ -4,11 +4,11 @@ A Streamlit-based ledger system for CSV import, monthly analytics, and lightweig
 
 ## Main Features
 
-- CSV import with normalization and ID-based de-duplication
+- CSV import with normalization, ID-based de-duplication, and precise import stats
 - SQLite-backed master data with CSV snapshot compatibility
 - Built-in login with default accounts (admin / parent)
 - Monthly dashboard for trend, structure, rhythm, and anomaly insights
-- Clean dark-themed dashboard UI (v0.9.1)
+- Clean dark-themed dashboard UI (v0.10)
 
 ## Tech Stack
 
@@ -24,7 +24,7 @@ Streamlit Cloud (recommended):
 
 Live URL: https://my-account.streamlit.app/
 
-Two default accounts are built in: `admin` (full access) and `parent` (view-only). Set `LEDGER_USERS_JSON` in Streamlit Secrets to override default accounts or passwords.
+Two default accounts are built in: `admin` (full access) and `parent` (view-only). Set `LEDGER_USERS_JSON` in Streamlit Secrets to override default accounts or passwords before sharing the app.
 
 1. Push repository to GitHub.
 2. Create an app in Streamlit Cloud.
@@ -41,6 +41,12 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 streamlit run app.py
+```
+
+Validate local data after importing a new CSV:
+
+```bash
+python scripts\validate_data.py
 ```
 
 ## License

@@ -38,11 +38,11 @@ DEFAULT_INCOME_PRIMARY = "其它"
 
 # ===== 应用元数据 =====
 APP_NAME = "账本管理系统"
-APP_VERSION = "v0.9"
+APP_VERSION = "v0.10"
 APP_TITLE = f"{APP_NAME} | {APP_VERSION} - 智能财务分析"
 APP_DESCRIPTION = "企业级个人财务管理与AI洞察平台"
 
-# ===== 颜色系统 (深空科技主题 v0.9) =====
+# ===== 颜色系统 (深空科技主题) =====
 COLORS = {
     # 背景
     "bg_primary": "#060d17",

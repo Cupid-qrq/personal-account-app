@@ -1,11 +1,11 @@
 """
-账本管理系统 v0.9 - 智能财务分析平台
+账本管理系统 v0.10 - 智能财务分析平台
 
 核心特性:
   RBAC 权限系统 (3角色7权限)
   24+ 高级分析函数 (年度对比、健康评分、异常检测、AI洞察)
   深空科技主题 / 玻璃态卡片 / 响应式布局
-  实时财务洞察与可执行建议
+  精准导入统计 / 批量扫描 data/origin
   SQLite 主数据层 / CSV 归档镜像
 """
 
@@ -236,6 +236,17 @@ def login_page():
                     st.error("用户名或密码错误")
 
 
+def format_import_result(result: dict) -> str:
+    """Format import stats without overstating de-duplicated uploads as new rows."""
+    return (
+        f"导入成功！\n"
+        f"扫描 {result.get('raw_rows', 0)} 条，规范化 {result.get('normalized_rows', 0)} 条\n"
+        f"新增 {result.get('new_rows', 0)} 条，覆盖 {result.get('updated_rows', 0)} 条\n"
+        f"主表共 {result.get('master_rows', 0)} 条\n"
+        f"月份: {', '.join(result.get('months_saved', [])) if result.get('months_saved') else '无'}"
+    )
+
+
 if not st.session_state.logged_in:
     login_page()
     st.stop()
@@ -281,11 +292,7 @@ with st.sidebar:
                             MASTER_FILE,
                             uploaded_file.name,
                         )
-                        st.success(
-                            f"导入成功！\n"
-                            f"新增 {result['imported_rows']} 条记录\n"
-                            f"月份: {', '.join(result['months_saved']) if result['months_saved'] else '无'}"
-                        )
+                        st.success(format_import_result(result))
                         st.rerun()
                     except Exception as e:
                         st.error(f"导入失败: {str(e)[:80]}")
@@ -295,9 +302,19 @@ with st.sidebar:
                 try:
                     files = discover_root_csv_files(PROJECT_ROOT)
                     if files:
+                        total_new = 0
+                        total_updated = 0
+                        last_master_rows = 0
                         for f in files:
-                            import_csv_file(f, ARCHIVE_DIR, MASTER_FILE)
-                        st.success(f"批量导入完成 ({len(files)} 个文件)")
+                            result = import_csv_file(f, ARCHIVE_DIR, MASTER_FILE)
+                            total_new += int(result.get("new_rows", 0))
+                            total_updated += int(result.get("updated_rows", 0))
+                            last_master_rows = int(result.get("master_rows", last_master_rows))
+                        st.success(
+                            f"批量导入完成 ({len(files)} 个文件)\n"
+                            f"新增 {total_new} 条，覆盖 {total_updated} 条\n"
+                            f"主表共 {last_master_rows} 条"
+                        )
                         st.rerun()
                     else:
                         st.warning("未发现 CSV 文件")
