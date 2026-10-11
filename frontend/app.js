@@ -59,12 +59,12 @@ function renderCategories(categories, total) {
 }
 
 function renderRecent(rows) {
-  $('#recent-list').innerHTML = rows.map((row) => `<div class="recent-row"><div class="recent-mark">${row.type === '收入' ? '↗' : '•'}</div><div class="recent-main"><div class="recent-title">${escapeHtml(row.category)} / ${escapeHtml(row.subcategory)}</div><div class="recent-sub">${escapeHtml(row.date)} · ${escapeHtml(row.note)}</div></div><div class="recent-amount ${row.type === '收入' ? 'income' : ''}">${row.type === '收入' ? '+' : '−'}${money(row.amount)}</div></div>`).join('') || '<div class="empty">暂无记录</div>';
+  $('#recent-list').innerHTML = rows.map((row) => `<div class="recent-row"><div class="recent-mark" aria-hidden="true">${row.type === '收入' ? '<svg viewBox="0 0 16 16"><path d="M3.5 11.5 12 3.5M6 3.5h6v6"/></svg>' : '<span class="recent-dot"></span>'}</div><div class="recent-main"><div class="recent-title">${escapeHtml(row.category)} / ${escapeHtml(row.subcategory)}</div><div class="recent-sub">${escapeHtml(row.date)} · ${escapeHtml(row.note)}</div></div><div class="recent-amount ${row.type === '收入' ? 'income' : ''}">${row.type === '收入' ? '+' : '−'}${money(row.amount)}</div></div>`).join('') || '<div class="empty">暂无记录</div>';
 }
 
 function renderOverview(data) {
   $('#period-label').textContent = data.month || '—';
-  $('#hero-title').innerHTML = `${data.month ? data.month.replace('-', ' / ') : '你的消费'}，<em>有了上下文。</em>`;
+  $('#hero-title').innerHTML = `${data.month ? data.month.replace('-', ' / ') : '把这个月'}，<em>读懂一点。</em>`;
   renderMetrics(data); renderTrend(data.trend); renderInsights(data.insights, data.metrics); renderCategories(data.categories, data.metrics.expense); renderRecent(data.recent);
 }
 
@@ -101,6 +101,8 @@ function switchView(view) {
   $$('.nav-item').forEach((el) => el.classList.toggle('active', el.dataset.view === view));
   $$('.view').forEach((el) => el.classList.toggle('active-view', el.id === `view-${view}`));
   $('#page-name').textContent = ({ overview:'总览', patterns:'消费模式', ledger:'账单明细', data:'数据室' })[view] || '总览';
+  const nextHash = view === 'overview' ? '' : `#${view}`;
+  if (window.location.hash !== nextHash) window.history.replaceState(null, '', `${window.location.pathname}${nextHash}`);
   if (view === 'data') renderDataRoom().catch((error) => showToast(error.message, true));
 }
 
@@ -109,6 +111,8 @@ async function boot() {
     const data = await api('/api/summary');
     $('#month-select').innerHTML = data.months.map((month) => `<option value="${month}">${month}</option>`).join('');
     await loadMonth(data.month);
+    const initialView = window.location.hash.slice(1);
+    if (['overview', 'patterns', 'ledger', 'data'].includes(initialView)) switchView(initialView);
   } catch (error) { $('#rail-status').textContent = '等待数据'; showToast(error.message, true); }
 }
 
