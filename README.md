@@ -44,4 +44,4 @@ python server.py
 - [架构说明](docs/架构说明.md)：当前 Atlas 运行时与数据流。
 - [迭代日志](docs/迭代日志.md)：版本记录和验证结果。
 
-旧 Streamlit 实现仍保留在 Git 历史和 `src/` 中作为迁移参考，新入口已经切换为 FastAPI。
+旧 Streamlit 实现已从工作树删除，只保留在 Git 历史中；当前工作树唯一运行入口是 FastAPI。

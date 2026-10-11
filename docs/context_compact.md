@@ -8,7 +8,7 @@
 - 新入口：`app.py` 暴露 `backend.api:app`，`server.py` 本地运行。
 - 新数据输出：`data/processed_atlas/ledger_atlas.csv`、`ledger_atlas.sqlite3`、`dataset_manifest.json`；月度镜像在 `data/archive_atlas/`。
 - 新源格式：`data/origin/` 中的 CSV/XLSX/XLS；最新 Excel 387 条，2026-01 至 2026-10，覆盖旧主表的 184 条并新增 203 条。
-- 旧 `src/`、`data/processed/`、`data/archive/` 保留为迁移参考，不是新运行时依赖。
+- 旧 `src/`、Streamlit 配置、旧生成产物和旧脚本已从工作树删除；历史版本仍在 Git 提交中可追溯。
 
 ## 验证命令
 

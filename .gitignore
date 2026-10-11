@@ -11,26 +11,19 @@ __pycache__/
 venv/
 env/
 
-# Build / tooling cache
+# Build, test and editor state
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 coverage.xml
 htmlcov/
-
-# IDE / OS
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 
-# Streamlit secrets and local state
-.streamlit/secrets.toml
-.streamlit/*.log
-.streamlit/*.pid
-
-# Local env and debug configs
+# Local configuration and secrets
 .env
 .env.*
 !.env.example
@@ -38,22 +31,12 @@ Thumbs.db
 logs/
 *.log
 
-# Runtime temp data
-data/processed/*.tmp
-data/processed/*.sqlite3
+# Temporary data and previews
 data/processed_atlas/*.tmp
 data/origin/*.bak
 data/origin/*.tmp
-
-# Browser and local preview artifacts
 .playwright-cli/
 output/playwright/
 
-# Keep root surface clean
-/*.csv
-/context_*.txt
-/*_draft.md
-*.tmp
-
-# Claude Code
+# Claude Code local settings
 .claude/

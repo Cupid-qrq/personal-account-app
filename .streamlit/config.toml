@@ -1,9 +1,0 @@
-[client]
-showErrorDetails = false
-showSidebarNavigation = true
-
-[logger]
-level = "warning"
-
-[browser]
-gatherUsageStats = false
