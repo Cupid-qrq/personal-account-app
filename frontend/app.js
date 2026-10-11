@@ -32,7 +32,7 @@ function renderTrend(rows) {
   const el = $('#trend-chart');
   if (!rows.length) { el.innerHTML = '<div class="empty">暂无趋势数据</div>'; return; }
   const width = 760, height = 286, pad = { left: 42, right: 14, top: 20, bottom: 30 };
-  const max = Math.max(...rows.map((r) => Math.max(r.income, r.expense)), 1);
+  const max = Math.max(...rows.map((r) => Math.max(r.income, r.expense, Math.abs(r.running_balance))), 1);
   const x = (i) => pad.left + (rows.length === 1 ? (width - pad.left - pad.right) / 2 : i * (width - pad.left - pad.right) / (rows.length - 1));
   const y = (v) => pad.top + (1 - v / max) * (height - pad.top - pad.bottom);
   const line = rows.map((r, i) => `${x(i)},${y(r.running_balance)}`).join(' ');
