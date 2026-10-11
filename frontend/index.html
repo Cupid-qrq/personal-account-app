@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1e2521" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231e2521'/><path d='M9 21h3V11H9zm5 0h3V7h-3zm5 0h3v-8h-3z' fill='%23dcb26d'/></svg>" />
+    <title>Ledger Atlas</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="rail">
+        <div class="brand">
+          <div class="brand-mark"><span></span><span></span><span></span></div>
+          <div><div class="brand-name">ledger atlas</div><div class="brand-sub">personal finance OS</div></div>
+        </div>
+        <div class="rail-label">Workspace</div>
+        <nav class="nav" aria-label="主导航">
+          <button class="nav-item active" data-view="overview"><span class="nav-icon">◒</span><span>总览</span><span class="nav-key">01</span></button>
+          <button class="nav-item" data-view="patterns"><span class="nav-icon">⌁</span><span>消费模式</span><span class="nav-key">02</span></button>
+          <button class="nav-item" data-view="ledger"><span class="nav-icon">▤</span><span>账单明细</span><span class="nav-key">03</span></button>
+          <button class="nav-item" data-view="data"><span class="nav-icon">⌘</span><span>数据室</span><span class="nav-key">04</span></button>
+        </nav>
+        <div class="rail-spacer"></div>
+        <div class="rail-note">
+          <span class="eyebrow">ATLAS 2.0</span>
+          <p>把每一笔消费放回时间、结构和生活的上下文里。</p>
+          <div class="status-line"><i class="status-dot"></i><span id="rail-status">正在同步数据</span></div>
+        </div>
+        <div class="rail-footer"><span>家庭共享视图</span><span>⌘</span></div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="crumbs"><span>工作台</span><b>/</b><strong id="page-name">总览</strong></div>
+          <div class="top-actions">
+            <button class="icon-button" id="refresh-button" title="刷新数据">↻</button>
+            <button class="upload-button" id="upload-button"><span>导入账单</span><b>⌘I</b></button>
+            <input id="file-input" type="file" accept=".csv,.xlsx,.xls" hidden />
+          </div>
+        </header>
+
+        <section class="page-head">
+          <div>
+            <div class="eyebrow">MONTHLY FIELD NOTES <span class="rule"></span><span id="period-label">—</span></div>
+            <h1 id="hero-title">你的消费，<em>有了上下文。</em></h1>
+            <p class="hero-copy">从现金流到日常节奏，Ledger Atlas 将原始账单整理成一份可以一起阅读的生活记录。</p>
+          </div>
+          <div class="period-picker">
+            <label for="month-select">查看月份</label>
+            <select id="month-select"></select>
+          </div>
+        </section>
+
+        <div id="toast" class="toast" role="status"></div>
+
+        <section id="view-overview" class="view active-view">
+          <div class="metric-grid" id="metric-grid"></div>
+          <div class="overview-grid">
+            <article class="panel cash-panel">
+              <div class="panel-head"><div><span class="eyebrow">CASH FLOW</span><h2>现金流轨迹</h2></div><span class="panel-meta">收入 / 支出 / 累计结余</span></div>
+              <div class="chart-wrap" id="trend-chart"></div>
+            </article>
+            <article class="panel signal-panel">
+              <div class="panel-head"><div><span class="eyebrow">SIGNALS</span><h2>本月信号</h2></div><span class="live-dot">LIVE</span></div>
+              <div class="insight-stack" id="insight-stack"></div>
+              <div class="health-row"><div><span class="eyebrow">BALANCE INDEX</span><strong id="health-index">—</strong></div><div class="health-track"><i id="health-bar"></i></div></div>
+            </article>
+          </div>
+          <div class="lower-grid">
+            <article class="panel category-panel">
+              <div class="panel-head"><div><span class="eyebrow">SPEND MAP</span><h2>支出结构</h2></div><button class="text-button" data-jump="patterns">查看模式 →</button></div>
+              <div class="category-body"><div class="donut" id="category-donut"><div><strong id="donut-total">¥0</strong><span>本月支出</span></div></div><div class="category-list" id="category-list"></div></div>
+            </article>
+            <article class="panel recent-panel">
+              <div class="panel-head"><div><span class="eyebrow">RECENT LEDGER</span><h2>最近记录</h2></div><button class="text-button" data-jump="ledger">全部明细 →</button></div>
+              <div class="recent-list" id="recent-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-patterns" class="view">
+          <div class="section-intro"><div><span class="eyebrow">BEHAVIORAL PATTERNS</span><h2>消费模式</h2><p>把支出拆成类别、日期和频率，找到真正改变月度结果的少数变量。</p></div><div class="intro-number" id="pattern-month">—</div></div>
+          <div class="patterns-grid"><article class="panel wide-panel"><div class="panel-head"><div><span class="eyebrow">CATEGORY MOMENTUM</span><h2>分类动量</h2></div></div><div id="pattern-categories" class="bar-chart"></div></article><article class="panel"><div class="panel-head"><div><span class="eyebrow">WEEKDAY RHYTHM</span><h2>星期画像</h2></div></div><div id="weekday-chart" class="weekday-chart"></div></article></div>
+          <article class="panel table-panel"><div class="panel-head"><div><span class="eyebrow">SUBCATEGORY DETAIL</span><h2>二级分类穿透</h2></div></div><div id="subcategory-table"></div></article>
+        </section>
+
+        <section id="view-ledger" class="view">
+          <div class="section-intro"><div><span class="eyebrow">SOURCE RECORDS</span><h2>账单明细</h2><p>按原始记录查看当前月份，保留分类、备注和金额的来源线索。</p></div><div class="filter-pill" id="ledger-count">0 条记录</div></div>
+          <article class="panel table-panel"><div class="table-tools"><div class="search-box"><span>⌕</span><input id="ledger-search" placeholder="搜索分类、备注或日期" /></div><span class="table-note">当前月份 · 最新在前</span></div><div id="ledger-table"></div></article>
+        </section>
+
+        <section id="view-data" class="view">
+          <div class="section-intro"><div><span class="eyebrow">DATA ROOM</span><h2>数据室</h2><p>所有分析都从可重建、可核对的数据资产开始。</p></div><div class="filter-pill" id="data-status">检查中</div></div>
+          <div class="data-cards" id="data-cards"></div>
+          <article class="panel table-panel"><div class="panel-head"><div><span class="eyebrow">CONTRACT</span><h2>当前数据契约</h2></div></div><div id="data-contract" class="contract-list"></div></article>
+        </section>
+
+        <footer class="footer"><span>Ledger Atlas · 个人账本工作台</span><span>数据只来自你导入的账单文件</span></footer>
+      </main>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
+

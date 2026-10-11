@@ -1,0 +1,2 @@
+"""Ledger Atlas backend package."""
+

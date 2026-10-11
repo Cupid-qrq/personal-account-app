@@ -41,8 +41,13 @@ logs/
 # Runtime temp data
 data/processed/*.tmp
 data/processed/*.sqlite3
+data/processed_atlas/*.tmp
 data/origin/*.bak
 data/origin/*.tmp
+
+# Browser and local preview artifacts
+.playwright-cli/
+output/playwright/
 
 # Keep root surface clean
 /*.csv

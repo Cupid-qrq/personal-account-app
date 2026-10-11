@@ -1,3 +1,5 @@
-"""Streamlit entrypoint for the ledger app."""
+"""ASGI entrypoint for Ledger Atlas."""
 
-from src import ui_app  # noqa: F401
+from backend.api import app
+
+__all__ = ["app"]
