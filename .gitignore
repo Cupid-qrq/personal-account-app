@@ -40,3 +40,13 @@ output/playwright/
 
 # Claude Code local settings
 .claude/
+
+# Frontend dependencies, local design skills and generated verification artifacts
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+.agents/
+skills-lock.json
+output/
+data/settings.json
+data/settings.tmp

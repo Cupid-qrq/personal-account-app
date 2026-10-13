@@ -72,6 +72,10 @@ def _recent(month_df: pd.DataFrame, limit: int = 8) -> list[dict[str, Any]]:
             "type": str(row.get("类型", "支出")),
             "amount": _money(row.get("金额", 0)),
             "note": _text(row.get("备注"), "无备注"),
+            "account": _text(row.get("账户1")),
+            "book": _text(row.get("账本")),
+            "currency": _text(row.get("币种"), "CNY"),
+            "tags": _text(row.get("标签")),
         })
     return rows
 
@@ -100,18 +104,8 @@ def _weekday(month_df: pd.DataFrame) -> list[dict[str, Any]]:
     return [{"name": WEEKDAYS[i], "amount": _money(mapping[i]["amount"]) if i in mapping else 0.0, "records": int(mapping[i]["records"]) if i in mapping else 0} for i in range(7)]
 
 
-def _insights(df: pd.DataFrame, month: str, month_df: pd.DataFrame, categories: list[dict[str, Any]]) -> list[dict[str, str]]:
-    current = _month_frame(df, month)
-    trend = _trend(df)
-    index = next((i for i, row in enumerate(trend) if row["month"] == month), len(trend) - 1)
-    previous = trend[index - 1] if index > 0 else None
-    expense = _money(current.loc[current["类型"] == "支出", "金额"].sum())
+def _insights(month_df: pd.DataFrame, categories: list[dict[str, Any]]) -> list[dict[str, str]]:
     insights: list[dict[str, str]] = []
-    if previous:
-        delta = _pct_change(expense, previous["expense"])
-        direction = "上升" if delta > 0 else "下降"
-        tone = "watch" if delta > 15 else "calm"
-        insights.append({"tone": tone, "title": f"支出较上月{direction} {abs(delta):.1f}%", "body": f"本月支出 ¥{expense:,.0f}，上月为 ¥{previous['expense']:,.0f}。"})
     if categories:
         lead = categories[0]
         insights.append({"tone": "signal", "title": f"{lead['name']} 是主要支出来源", "body": f"占本月支出的 {lead['share']:.1f}%，共 {lead['records']} 笔。"})
@@ -126,7 +120,7 @@ def _insights(df: pd.DataFrame, month: str, month_df: pd.DataFrame, categories: 
 
 def summary(df: pd.DataFrame, month: str | None = None) -> dict[str, Any]:
     if df.empty:
-        return {"month": month, "months": [], "metrics": {}, "trend": [], "categories": [], "daily": [], "weekday": [], "recent": [], "insights": []}
+        return {"month": None, "months": [], "metrics": {"income": 0, "expense": 0, "balance": 0, "saving_rate": 0, "records": 0, "expense_change": None, "daily_average": 0}, "coverage": None, "comparison": None, "trend": [], "categories": [], "daily": [], "weekday": [], "recent": [], "insights": []}
     months = sorted(df["月份"].dropna().astype(str).unique())
     month = month if month in months else months[-1]
     month_df = _month_frame(df, month)
@@ -135,8 +129,27 @@ def summary(df: pd.DataFrame, month: str | None = None) -> dict[str, Any]:
     balance = _money(income - expense)
     saving_rate = round(balance / income * 100, 1) if income else 0.0
     trend = _trend(df)
-    current_idx = next((i for i, item in enumerate(trend) if item["month"] == month), 0)
-    previous_expense = trend[current_idx - 1]["expense"] if current_idx > 0 else 0.0
+    last_date = pd.to_datetime(month_df["时间"]).max()
+    period = pd.Period(month, freq="M")
+    is_partial = month == months[-1] and last_date.day < period.days_in_month
+    observed_days = last_date.day if is_partial else period.days_in_month
+    previous_month = str(period - 1)
+    previous = df[df["月份"].astype(str) == previous_month]
+    if is_partial:
+        previous = previous[pd.to_datetime(previous["时间"]).dt.day <= observed_days]
+    previous_expense = _money(previous.loc[previous["类型"] == "支出", "金额"].sum())
+    change = _pct_change(expense, previous_expense) if not previous.empty and previous_expense > 0 else None
+    categories = _category_rows(month_df)
+    insights = _insights(month_df, categories)
+    if change is not None:
+        insights.insert(0, {"tone": "calm" if change <= 0 else "watch", "title": f"较上月{'同期' if is_partial else ''}{'减少' if change < 0 else '增加'} {abs(change):.1f}%", "body": f"比较范围：{previous_month} 1–{min(observed_days, (period - 1).days_in_month)} 日，支出 ¥{previous_expense:,.2f}。"})
+    daily_map = {r["date"]: r["amount"] for r in _daily(month_df)}
+    daily, running = [], 0.0
+    for day in range(1, observed_days + 1):
+        date = f"{month}-{day:02d}"
+        amount = daily_map.get(date, 0.0)
+        running += amount
+        daily.append({"date": date, "amount": amount, "cumulative": _money(running)})
     return {
         "month": month,
         "months": months,
@@ -146,14 +159,17 @@ def summary(df: pd.DataFrame, month: str | None = None) -> dict[str, Any]:
             "balance": balance,
             "saving_rate": saving_rate,
             "records": int(len(month_df)),
-            "expense_change": _pct_change(expense, previous_expense) if current_idx > 0 else None,
+            "expense_change": change,
+            "daily_average": _money(expense / observed_days),
         },
+        "coverage": {"last_date": last_date.strftime("%Y-%m-%d"), "is_partial": is_partial, "observed_days": observed_days, "month_days": period.days_in_month},
+        "comparison": {"month": previous_month, "expense": previous_expense, "partial": is_partial, "available": not previous.empty},
         "trend": trend,
-        "categories": _category_rows(month_df),
-        "daily": _daily(month_df),
+        "categories": categories,
+        "daily": daily,
         "weekday": _weekday(month_df),
         "recent": _recent(month_df),
-        "insights": _insights(df, month, month_df, _category_rows(month_df)),
+        "insights": insights[:3],
     }
 
 

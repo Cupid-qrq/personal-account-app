@@ -1,47 +1,75 @@
 # Ledger Atlas
 
-Ledger Atlas 是一个面向家庭共享的个人账本工作台。它把 CSV / XLSX 原始账单按 `ID` 去重、标准化后写入 SQLite 与 CSV 快照，再用独立的 Python API 和静态前端展示现金流、支出结构、消费节律、账单明细与数据质量。
+个人生活账本。把每月的 CSV / Excel 原始记录整理成清楚的收支、分类与生活节奏，方便自己与家人阅读。
 
-## 当前版本
+当前版本 **3.0**：React + TypeScript + Vite + shadcn/ui 前端，FastAPI 数据服务。暖纸色、陶土色与青灰色，文档式布局；桌面侧栏、手机底部导航。Streamlit 和上一版原生 JavaScript 前端已移除，旧实现只保留在 Git 历史。
 
-- **应用**：Ledger Atlas 2.0 alpha
-- **数据**：`data/origin/` 下的 CSV / XLSX 均可作为累计源文件；当前最新源文件覆盖 2026-01 至 2026-10，共 387 条唯一记录。
-- **入口**：`app.py` 暴露 ASGI 应用，`server.py` 提供本地启动命令。
-- **前端**：`frontend/` 下的原生 HTML / CSS / JavaScript，无 Streamlit 页面状态依赖。
-- **后端**：`backend/` 下的 FastAPI、数据导入、分析和质量接口。
+## 已实现
 
-## 能力
+- **月度总览**：收入、支出、结余、日均支出、月度 / 年度图表、分类占比、预算和近期账单。
+- **消费分析**：分类排行、星期分布、消费日历、二级分类。点击分类或日期可直接查看对应明细。
+- **账单明细**：搜索、分类 / 收支 / 日期 / 二级分类筛选、排序、分页、详情抽屉、CSV 导出；筛选与月份保留在 URL。
+- **数据管理**：原始文件、完整性信息、SHA-256；导入先校验预览，再确认更新。按字符串 ID 合并，更正日期也能更新同一记录。
+- **真实交互**：服务端保存预算、错误重试、空状态、键盘选择与弹窗焦点管理、图表数据表、月报 CSV / 打印 PDF。
 
-- 同一数据契约读取 CSV、XLSX 和 XLS，保留来源字段并补充日期、月份、年份。
-- 可重复的全量重建：按 `ID` 去重，输出 `processed_atlas/ledger_atlas.csv`、SQLite、月度归档和数据清单哈希。
-- 总览：收入、支出、结余、储蓄率、现金流轨迹、支出结构和本月信号。
-- 模式：分类动量、二级分类穿透、星期画像和日度节奏。
-- 明细：当前月份全部原始记录，可搜索分类、备注和日期。
-- 数据室：数据契约、来源文件数量、覆盖月份、重复 ID 与主表哈希。
-- 导入：页面支持 CSV/XLSX 文件导入；设置 `LEDGER_ADMIN_TOKEN` 后，导入接口要求 `X-Admin-Token`。
+仓库当前数据为 387 条唯一记录、2026 年 1–10 月。十月只收录至 9 日，因此按九月 1–9 日比较，不与九月整月直接计算环比。
 
 ## 本地运行
 
+环境：Python 3.11+、Node.js 22.12+（建议 24）、npm，以及运行浏览器验收所需的 Chrome。
+
+Windows 一键安装、构建、整理数据并启动：
+
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python scripts\rebuild_atlas.py
-python scripts\validate_atlas.py
-python server.py
+.\scripts\run_app.ps1
 ```
 
-打开 <http://localhost:8000>。部署时可使用 `uvicorn app:app --host 0.0.0.0 --port 8000`。
+或者手动运行：
 
-## 部署建议
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+npm ci --prefix frontend
+npm run build --prefix frontend
+.\.venv\Scripts\python.exe scripts\rebuild_atlas.py
+.\.venv\Scripts\python.exe server.py
+```
 
-推荐把前端静态资源部署到 GitHub Pages 或 Cloudflare Pages，把 FastAPI 部署到一台轻量 Python 服务上；如果只需要家庭内网访问，直接在 NAS 或家庭电脑运行 `server.py` 即可。GitHub Pages 本身只适合只读静态导出，不能承载上传和 SQLite 写入。
+打开 [本地账本](http://localhost:8000)。FastAPI 同时提供编译后的页面与 API，只需要一个服务端口。`server.py` 监听 `0.0.0.0:8000`，同一局域网的家人可通过电脑的局域网 IP 访问。
 
-## 数据与文档
+开发时保持 Python 服务运行，另开终端执行 `npm run dev --prefix frontend`，访问 `http://127.0.0.1:5173`；Vite 将 `/api` 代理到端口 8000。
 
-- [项目审计](docs/项目审计.md)：旧系统架构、数据证据、风险和迁移边界。
-- [总体规划](docs/总体规划.md)：新系统的产品、架构、开发阶段和验收标准。
-- [架构说明](docs/架构说明.md)：当前 Atlas 运行时与数据流。
-- [迭代日志](docs/迭代日志.md)：版本记录和验证结果。
+## 数据与部署
 
-旧 Streamlit 实现已从工作树删除，只保留在 Git 历史中；当前工作树唯一运行入口是 FastAPI。
+原始来源放在 `data/origin/`；支持 CSV、XLSX、XLS。界面上传限制 10 MB；必需列为 `ID、时间、分类、类型、金额`。更正文件使用相同 ID 重新导入。系统保留来源文件，生成 CSV、SQLite、月度归档与数据清单。预算保存在 `data/settings.json`，不提交 Git。
+
+推荐 NAS / 小型服务器单实例部署，或使用仓库的多阶段 `Dockerfile`。容器不包含个人数据，需要把数据目录挂载到 `/app/data`，并给予容器用户 UID 10001 写权限。
+
+```sh
+docker build -t ledger-atlas .
+docker run --rm -p 8000:8000 -v /absolute/ledger-data:/app/data -e LEDGER_ADMIN_TOKEN=your-token ledger-atlas
+```
+
+`LEDGER_ADMIN_TOKEN` 保护导入和预算修改；它不是阅读权限认证。若需公网家庭共享，应在反向代理层加访问认证及 HTTPS。当前没有发布到公网。GitHub 用于代码托管和 CI；GitHub Pages 不能单独承载此应用的数据写入与上传。
+
+## 验证
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m unittest discover -s tests -v
+python scripts\validate_atlas.py
+npm run format:check --prefix frontend
+npm run build --prefix frontend
+# 保持 http://127.0.0.1:8000 运行
+npm run qa:chrome --prefix frontend
+```
+
+浏览器脚本通过真实 Chrome DevTools MCP 驱动 Chrome，覆盖响应式布局、图表、无障碍和主要交互。截图、原始 MCP 记录与 JSON 结果保存在本地 `output/qa/`，不提交含个人账单的截图。预算验收会暂时保存测试值并在结束时还原；导入浏览器验收只做预览，实际写入测试使用临时账本。
+
+## 文档
+
+- [总体规划](docs/总体规划.md)：产品范围、已交付阶段、下一阶段及验收标准。
+- [设计系统](docs/设计系统.md)：视觉、组件与交互规范。
+- [架构说明](docs/架构说明.md)：数据契约、API、持久化与部署边界。
+- [验收记录](docs/验收记录.md)：实际执行结果与视觉迭代证据。
+- [开发上下文](docs/context_compact.md)：后续维护入口；[迭代日志](docs/迭代日志.md) 记录版本变化。

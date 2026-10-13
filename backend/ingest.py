@@ -4,6 +4,7 @@ import hashlib
 import json
 import sqlite3
 import warnings
+from contextlib import closing
 from io import BytesIO
 from pathlib import Path
 
@@ -34,10 +35,10 @@ def _read_bytes(content: bytes, suffix: str) -> pd.DataFrame:
     if suffix in {".xlsx", ".xls"}:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message="Workbook contains no default style")
-            return pd.read_excel(BytesIO(content))
+            return pd.read_excel(BytesIO(content), dtype={"ID": str})
     for encoding in ("utf-8-sig", "utf-8", "gbk", "gb18030"):
         try:
-            return pd.read_csv(BytesIO(content), encoding=encoding)
+            return pd.read_csv(BytesIO(content), encoding=encoding, dtype={"ID": str})
         except UnicodeDecodeError:
             continue
     raise ValueError("无法识别 CSV 编码，请使用 UTF-8 或 GBK。")
@@ -84,17 +85,18 @@ def normalize_records(frame: pd.DataFrame) -> pd.DataFrame:
     frame["日期"] = frame["时间"].dt.strftime("%Y-%m-%d")
     frame["月份"] = frame["时间"].dt.to_period("M").astype(str)
     frame["年份"] = frame["时间"].dt.year.astype(int)
-    frame = frame.sort_values("时间").drop_duplicates("ID", keep="last")
+    # A correction may move a transaction to an earlier date. Last source row wins.
+    frame = frame.drop_duplicates("ID", keep="last").sort_values("时间", kind="stable")
     return frame[CANONICAL_COLUMNS].reset_index(drop=True)
 
 
 def _source_files(origin_dir: Path = ORIGIN_DIR) -> list[Path]:
     if not origin_dir.exists():
         return []
-    return sorted(
-        p for p in origin_dir.iterdir()
-        if p.is_file() and p.suffix.lower() in {".csv", ".xlsx", ".xls"} and not p.name.startswith("~")
-    )
+    files = [p for p in origin_dir.iterdir()
+             if p.is_file() and p.suffix.lower() in {".csv", ".xlsx", ".xls"} and not p.name.startswith("~")]
+    # Manual exports are chronological by filename; confirmed uploads take precedence.
+    return sorted(files, key=lambda p: (p.name.startswith("upload_"), p.name))
 
 
 def _read_source(path: Path) -> pd.DataFrame:
@@ -107,10 +109,11 @@ def _write_sqlite(frame: pd.DataFrame, db_file: Path) -> None:
     sqlite_frame["时间"] = pd.to_datetime(sqlite_frame["时间"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S")
     for col in NUMERIC_COLUMNS:
         sqlite_frame[col] = pd.to_numeric(sqlite_frame[col], errors="coerce").fillna(0.0)
-    with sqlite3.connect(db_file) as conn:
+    with closing(sqlite3.connect(db_file)) as conn:
         sqlite_frame.to_sql("ledger_records", conn, if_exists="replace", index=False)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_month ON ledger_records(月份)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_type ON ledger_records(类型)")
+        conn.commit()
 
 
 def _sha256(path: Path) -> str:
@@ -121,8 +124,8 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def rebuild(origin_dir: Path = ORIGIN_DIR) -> dict[str, object]:
-    files = _source_files(origin_dir)
+def rebuild(origin_dir: Path | None = None) -> dict[str, object]:
+    files = _source_files(origin_dir or ORIGIN_DIR)
     frames: list[pd.DataFrame] = []
     raw_rows = 0
     for path in files:
@@ -133,7 +136,7 @@ def rebuild(origin_dir: Path = ORIGIN_DIR) -> dict[str, object]:
             frames.append(cleaned)
     combined = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=CANONICAL_COLUMNS)
     if not combined.empty:
-        combined = combined.sort_values("时间").drop_duplicates("ID", keep="last").reset_index(drop=True)
+        combined = combined.drop_duplicates("ID", keep="last").sort_values("时间", kind="stable").reset_index(drop=True)
 
     ATLAS_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     ATLAS_ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
@@ -165,7 +168,7 @@ def load_master() -> pd.DataFrame:
     path = ATLAS_PROCESSED_DIR / "ledger_atlas.csv"
     if not path.exists():
         rebuild()
-    frame = pd.read_csv(path, encoding="utf-8-sig")
+    frame = pd.read_csv(path, encoding="utf-8-sig", dtype={"ID": str})
     frame["时间"] = pd.to_datetime(frame["时间"], errors="coerce")
     for col in NUMERIC_COLUMNS:
         frame[col] = pd.to_numeric(frame[col], errors="coerce").fillna(0.0)

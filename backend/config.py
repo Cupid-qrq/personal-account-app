@@ -12,10 +12,11 @@ ATLAS_ARCHIVE_DIR = DATA_DIR / "archive_atlas"
 MASTER_FILE = ATLAS_PROCESSED_DIR / "ledger_atlas.csv"
 DB_FILE = ATLAS_PROCESSED_DIR / "ledger_atlas.sqlite3"
 MANIFEST_FILE = ATLAS_PROCESSED_DIR / "dataset_manifest.json"
-FRONTEND_DIR = ROOT / "frontend"
+FRONTEND_DIR = ROOT / "frontend" / "dist"
+SETTINGS_FILE = DATA_DIR / "settings.json"
 
 APP_NAME = "Ledger Atlas"
-APP_VERSION = "2.0.0-alpha"
+APP_VERSION = "3.0.0"
 ADMIN_TOKEN = os.getenv("LEDGER_ADMIN_TOKEN", "")
 
 RAW_COLUMNS = [

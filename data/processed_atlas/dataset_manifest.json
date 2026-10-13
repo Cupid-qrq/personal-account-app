@@ -1,6 +1,6 @@
 {
   "version": "atlas-2",
-  "generated_at": "2026-10-11T02:42:25.637461+00:00",
+  "generated_at": "2026-10-13T13:37:18.753502+00:00",
   "source_files": [
     {
       "name": "2026-04.csv",
@@ -79,5 +79,5 @@
     "支出": 362,
     "收入": 25
   },
-  "master_sha256": "62af40cd496fdf2157621cc5078829947745b28b3e2a9d9c136fb5f78be18a66"
+  "master_sha256": "a6814a6a2aa0aaa44cc176cd58d05d35af278f9dd0a89b6b931031da8b825a57"
 }
