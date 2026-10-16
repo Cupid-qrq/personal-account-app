@@ -9,7 +9,7 @@ const require = createRequire(path.join(root, 'frontend/package.json'))
 const { Client } = await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/index.js')))
 const { StdioClientTransport } = await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/stdio.js')))
 const chromeBin = path.join(root, 'frontend/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js')
-const output = path.join(root, process.env.LEDGER_QA_OUTPUT || 'output/qa-v3.1')
+const output = path.join(root, process.env.LEDGER_QA_OUTPUT || 'output/qa-v3.2')
 if (process.argv.includes('--reduced')) process.env.LEDGER_REDUCED_MOTION = '1'
 await fs.mkdir(output, { recursive: true })
 const client = new Client({ name: 'ledger-atlas-qa', version: '1.0.0' })

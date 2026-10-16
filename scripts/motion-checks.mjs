@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 export async function audit(call, root, base) {
   const output = path.join(
     root,
-    process.env.LEDGER_QA_OUTPUT || "output/qa-v3.1",
+    process.env.LEDGER_QA_OUTPUT || "output/qa-v3.2",
   );
   const records = [],
     reducedSystem = !!process.env.LEDGER_REDUCED_MOTION;
@@ -104,7 +104,7 @@ export async function audit(call, root, base) {
       "system reduced mode has no parallax or reveal on scroll",
       async () => {
         const s = await evaluate(
-          `async()=>{window.scrollTo(0,600);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return {transform:getComputedStyle(document.querySelector('.chapter-art')).transform,animations:document.getAnimations().filter(a=>a.playState==='running').length}}`,
+          `async()=>{window.scrollTo(0,600);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return {transform:getComputedStyle(document.querySelector('.chapter-scroll-layer')).transform,animations:document.getAnimations().filter(a=>a.playState==='running').length}}`,
         );
         if (s.transform !== "none" || s.animations)
           throw new Error(JSON.stringify(s));
@@ -125,7 +125,7 @@ export async function audit(call, root, base) {
       async () => {
         await click("button", "减少动态效果");
         const initial = await evaluate(
-          `async()=>{document.querySelector('button[aria-label="开启动效"]').click();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const a=document.getAnimations().filter(a=>a.animationName?.startsWith('chapter-'));a.forEach(a=>{a.pause();a.currentTime=80});return {animations:a.map(a=>a.animationName),opacity:getComputedStyle(document.querySelector('.chapter-card')).opacity,transform:getComputedStyle(document.querySelector('.chapter-card')).transform}}`,
+          `async()=>{document.querySelector('button[aria-label="开启动效"]').click();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const a=document.getAnimations().filter(a=>a.animationName?.startsWith('chapter-'));a.forEach(a=>{a.pause();a.currentTime=80});return {animations:a.map(a=>a.animationName),opacity:getComputedStyle(document.querySelector('.chapter-card')).opacity,transform:getComputedStyle(document.querySelector('.chapter-enter')).transform}}`,
         );
         if (
           initial.animations.length < 3 ||
@@ -147,32 +147,26 @@ export async function audit(call, root, base) {
         return initial;
       },
     );
-    await check("paper tilt responds and returns to rest", async () => {
-      await tool("hover", {
-        uid: await uid("button", "编辑月度手记与月结状态"),
-      });
-      const tilted = await evaluate(
-        `async()=>{const e=document.querySelector('.chapter-card'),r=e.getBoundingClientRect();e.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerType:'mouse',clientX:r.right-10,clientY:r.top+10}));await new Promise(r=>requestAnimationFrame(r));return e.style.getPropertyValue('--tilt-x')}`,
-      );
-      if (!tilted || tilted === "0deg") throw new Error("Tilt did not respond");
-      await shot("paper-hover");
-      await tool("hover", { uid: await uid("button", "刷新账本") });
-      if (
-        (await evaluate(
-          `()=>document.querySelector('.chapter-card').style.getPropertyValue('--tilt-x')`,
-        )) !== "0deg"
-      )
-        throw new Error("Tilt did not reset");
+    const { interactionChecks } = await import("./interaction-checks.mjs");
+    await interactionChecks({
+      tool,
+      evaluate,
+      uid,
+      click,
+      go,
+      shot,
+      check,
+      a11y,
     });
     await check(
       "scroll changes reading progress and reveals lower content",
       async () => {
         const s = await evaluate(
-          `async()=>{document.querySelector('.month-note-panel').scrollIntoView({block:'center'});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>requestAnimationFrame(r))));return {progress:getComputedStyle(document.documentElement).getPropertyValue('--reading-progress'),drift:getComputedStyle(document.documentElement).getPropertyValue('--chapter-drift'),revealed:document.querySelector('.month-note-panel').dataset.revealed,animations:document.getAnimations().filter(a=>a.id==='atlas-reveal').length}}`,
+          `async()=>{document.querySelector('.month-note-panel').scrollIntoView({block:'center'});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>requestAnimationFrame(r))));return {progress:getComputedStyle(document.documentElement).getPropertyValue('--reading-progress'),drift:getComputedStyle(document.documentElement).getPropertyValue('--hero-progress'),revealed:document.querySelector('.month-note-panel').dataset.revealed,animations:document.getAnimations().filter(a=>a.id==='atlas-reveal').length}}`,
         );
         if (
           Number(s.progress) <= 0 ||
-          s.drift === "0px" ||
+          Number(s.drift) <= 0 ||
           s.revealed !== "true"
         )
           throw new Error(JSON.stringify(s));
@@ -286,7 +280,7 @@ export async function audit(call, root, base) {
             "Mobile dialog should focus its title, not summon the keyboard",
           );
         await evaluate(
-          `async()=>{await Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{})));return true}`,
+          `async()=>{await Promise.all(document.getAnimations().filter(a=>a.timeline instanceof DocumentTimeline).map(a=>a.finished.catch(()=>{})));return true}`,
         );
         const r = await evaluate(
           `()=>{const r=document.querySelector('[role=dialog]').getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}}`,

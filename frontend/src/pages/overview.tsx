@@ -95,12 +95,8 @@ export default function Overview({
         <div className="budget-title">
           <Target size={18} />
           <div>
-            <h2>给生活一点余量</h2>
-            <p>
-              {data.budget
-                ? `本月预算 ${money(data.budget)}`
-                : '设置月度预算，了解每一笔支出的空间。'}
-            </p>
+            <h2>月度预算</h2>
+            <p>{data.budget ? `本月预算 ${money(data.budget)}` : '设置支出上限，查看剩余额度。'}</p>
           </div>
         </div>
         <div className="budget-progress">
@@ -144,8 +140,7 @@ export default function Overview({
         <section>
           <div className="panel-heading">
             <div>
-              <h2>最近的生活片段</h2>
-              <p>每一笔，都有生活的注脚</p>
+              <h2>近期账单</h2>
             </div>
             <Button variant="ghost" size="sm" onClick={() => onLedger()}>
               全部账单 <ArrowRight size={14} />
@@ -197,7 +192,6 @@ export default function Overview({
               </div>
             </div>
           ))}
-          <p className="observation-footnote">记录是理解生活的起点，不是对生活的评分。</p>
         </section>
       </div>
       <MonthNote data={data} onEdit={onReview} />

@@ -1,4 +1,4 @@
-/* 3.1: paper, reading rhythm, and quiet feedback. Baseline content remains visible. */
+/* 3.2: entry, scroll, and pointer motion have independent layers. */
 :root {
   --motion-quick: 140ms;
   --motion-ui: 240ms;
@@ -70,6 +70,7 @@
   transition: transform var(--motion-ui) var(--motion-ease);
 }
 .chapter-heading {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 248px;
   column-gap: 42px;
@@ -138,24 +139,40 @@
   margin: 8px 9px 8px auto;
   grid-column: 2;
   grid-row: 1 / 3;
-  perspective: 1000px;
-  transform: translateY(var(--chapter-drift, 0px)) rotate(var(--chapter-turn, 0deg));
+  isolation: isolate;
+}
+.chapter-enter {
+  position: relative;
+  perspective: 950px;
+}
+.chapter-scroll-layer {
+  transform: translate3d(
+      calc(var(--hero-progress, 0) * -12px),
+      calc(var(--hero-progress, 0) * 34px),
+      0
+    )
+    rotate(calc(var(--hero-progress, 0) * -7deg));
+  transform-origin: center 65%;
+}
+.chapter-paper {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 5px;
 }
 .chapter-paper-back {
-  position: absolute;
-  inset: 0;
   background: #ece5d9;
   border: 1px solid #ddd4c3;
-  border-radius: 5px;
-  transform: translate(-8px, 8px) rotate(-5deg);
+  transform: translate(
+      calc(-8px - var(--hero-progress, 0) * 28px),
+      calc(8px + var(--hero-progress, 0) * 4px)
+    )
+    rotate(calc(-5deg - var(--hero-progress, 0) * 13deg));
 }
-.chapter-paper-back::after {
-  content: '';
-  position: absolute;
-  inset: 0;
+.chapter-paper-middle {
   border: 1px solid #ded5c4;
-  border-radius: 5px;
-  transform: translate(7px, -2px) rotate(8deg);
+  transform: translate(calc(3px + var(--hero-progress, 0) * 15px), 3px)
+    rotate(calc(3deg + var(--hero-progress, 0) * 8deg));
   background: #f4efe5;
 }
 .chapter-card {
@@ -164,20 +181,48 @@
   flex-direction: column;
   width: 100%;
   min-height: 211px;
-  padding: 19px 20px 16px;
+  padding: 19px 20px 23px;
   border: 1px solid #d9cdbb;
   border-radius: 5px;
   background: #fffdf6;
   text-align: left;
   box-shadow: 0 8px 24px #5544310b;
-  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  overflow: hidden;
+  transform: translateY(calc(var(--pointer-active, 0) * -6px))
+    rotateX(calc(var(--pointer-y, 0) * -8deg)) rotateY(calc(var(--pointer-x, 0) * 9deg));
   transition:
-    transform 220ms var(--motion-ease),
-    box-shadow 220ms;
+    border-color 240ms,
+    box-shadow 240ms;
 }
 .chapter-card:hover,
 .chapter-card:focus-visible {
-  box-shadow: 0 12px 30px #55443114;
+  border-color: #b88564;
+  box-shadow:
+    0 14px 32px #5544311c,
+    0 0 0 1px #ad563d20;
+}
+.chapter-card > span:not(.chapter-spotlight) {
+  position: relative;
+  z-index: 1;
+}
+.chapter-spotlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: var(--pointer-active, 0);
+}
+.chapter-spotlight::after {
+  content: '';
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  left: 50%;
+  top: 50%;
+  margin: -140px;
+  pointer-events: none;
+  background: radial-gradient(circle, #e4bc873a, transparent 68%);
+  transform: translate(calc(var(--pointer-x, 0) * 100px), calc(var(--pointer-y, 0) * 90px));
 }
 .chapter-topline {
   display: flex;
@@ -229,24 +274,6 @@
   gap: 7px;
   font-size: 12px;
   color: #645540;
-}
-.chapter-stamp {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  align-self: flex-start;
-  margin-top: 13px;
-  font-size: 10px;
-  color: #786b53;
-}
-.chapter-stamp.closed {
-  color: var(--green);
-}
-.stamp-dot {
-  width: 4px;
-  height: 4px;
-  background: var(--primary);
-  border-radius: 50%;
 }
 .month-note-panel {
   margin-top: 26px;
@@ -379,7 +406,7 @@
 [data-motion='full'] .chapter-heading .heading-copy {
   animation: chapter-copy-in 620ms var(--motion-ease) both;
 }
-[data-motion='full'] .chapter-card {
+[data-motion='full'] .chapter-enter {
   animation: chapter-paper-in 720ms var(--motion-ease) backwards;
 }
 [data-motion='full'] .chapter-rule {
@@ -547,8 +574,8 @@
   .chapter-paper-back {
     transform: translate(-4px, 4px) rotate(-1deg);
   }
-  .chapter-paper-back::after {
-    transform: translate(1px, -1px) rotate(2deg);
+  .chapter-paper-middle {
+    transform: translate(1px, -1px) rotate(1deg);
   }
   .chapter-card {
     display: grid;
@@ -581,9 +608,6 @@
     font-size: 12px;
     align-self: start;
     padding-top: 6px;
-  }
-  .chapter-stamp {
-    display: none;
   }
   .month-note-panel {
     padding: 20px;
@@ -627,6 +651,173 @@
     display: none;
   }
 }
+.magnetic-zone {
+  position: relative;
+  display: inline-flex;
+}
+.chapter-heading .page-actions .hero-note-action {
+  background: var(--primary);
+  color: #fffefa;
+}
+.chapter-heading .page-actions .hero-note-action:hover {
+  background: #984b35;
+}
+.magnetic-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  translate: calc(var(--pointer-x, 0) * 5px) calc(var(--pointer-y, 0) * 4px);
+  pointer-events: none;
+}
+.chapter-heading .page-actions {
+  flex-wrap: wrap;
+}
+.text-link {
+  position: relative;
+}
+.text-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 2px;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 280ms var(--motion-ease);
+}
+.text-link:hover::after,
+.text-link:focus-visible::after {
+  transform: scaleX(1);
+}
+.text-link svg {
+  transition: translate 260ms var(--motion-ease);
+}
+.text-link:hover svg {
+  translate: 2px -2px;
+}
+.transaction-preview,
+.category-legend button {
+  transition:
+    transform 260ms var(--motion-ease),
+    box-shadow 260ms,
+    background-color 180ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-motion='full'] .transaction-preview:hover,
+  [data-motion='full'] .category-legend button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 7px 16px #5544310d;
+  }
+}
+.transaction-preview:focus-visible,
+.category-legend button:focus-visible {
+  box-shadow: 0 0 0 2px #ad563d55;
+}
+.skeleton-line {
+  position: relative;
+  overflow: hidden;
+}
+[data-motion='full'] .skeleton-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent, #fffefa99, transparent);
+  transform: translateX(-100%);
+  animation: skeleton-sweep 1.5s ease-in-out 3;
+}
+@keyframes skeleton-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes paper-scroll {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0);
+  }
+  to {
+    transform: translate3d(-12px, 34px, 0) rotate(-7deg);
+  }
+}
+@keyframes paper-back-scroll {
+  from {
+    transform: translate(-8px, 8px) rotate(-5deg);
+  }
+  to {
+    transform: translate(-36px, 12px) rotate(-18deg);
+  }
+}
+@keyframes paper-middle-scroll {
+  from {
+    transform: translate(3px, 3px) rotate(3deg);
+  }
+  to {
+    transform: translate(18px, 3px) rotate(11deg);
+  }
+}
+@supports (animation-timeline: scroll(root block)) {
+  [data-motion='full'] .chapter-scroll-layer {
+    animation: paper-scroll 1s linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 0px 260px;
+  }
+  [data-motion='full'] .chapter-paper-back {
+    animation: paper-back-scroll 1s linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 0px 260px;
+  }
+  [data-motion='full'] .chapter-paper-middle {
+    animation: paper-middle-scroll 1s linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 0px 260px;
+  }
+}
+@media (max-width: 760px) {
+  .chapter-scroll-layer {
+    transform: translateY(calc(var(--hero-progress, 0) * 4px));
+  }
+  .chapter-paper-back {
+    transform: translate(-4px, calc(4px + var(--hero-progress, 0) * 6px)) rotate(-1deg);
+  }
+  .chapter-paper-middle {
+    transform: translate(0, calc(-1px + var(--hero-progress, 0) * 6px)) rotate(1deg);
+  }
+  @keyframes paper-scroll {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(4px);
+    }
+  }
+  @keyframes paper-back-scroll {
+    from {
+      transform: translate(-4px, 4px) rotate(-1deg);
+    }
+    to {
+      transform: translate(-4px, 10px) rotate(-1deg);
+    }
+  }
+  @keyframes paper-middle-scroll {
+    from {
+      transform: translate(0, -1px) rotate(1deg);
+    }
+    to {
+      transform: translate(0, 5px) rotate(1deg);
+    }
+  }
+  .chapter-heading .page-actions {
+    gap: 8px;
+  }
+  .chapter-heading .page-actions [data-slot='select-trigger'] {
+    min-width: 126px;
+  }
+  .chapter-heading .page-actions [data-slot='button'] {
+    padding-inline: 10px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -636,8 +827,15 @@
     scroll-behavior: auto !important;
   }
   .chapter-art,
+  .chapter-scroll-layer,
   .chapter-card {
     transform: none !important;
+  }
+  .magnetic-content {
+    translate: none !important;
+  }
+  .chapter-spotlight {
+    display: none;
   }
 }
 [data-motion='reduce'] *,
@@ -648,8 +846,15 @@
   scroll-behavior: auto !important;
 }
 [data-motion='reduce'] .chapter-art,
+[data-motion='reduce'] .chapter-scroll-layer,
 [data-motion='reduce'] .chapter-card {
   transform: none !important;
+}
+[data-motion='reduce'] .magnetic-content {
+  translate: none !important;
+}
+[data-motion='reduce'] .chapter-spotlight {
+  display: none;
 }
 @media print {
   .reading-progress {

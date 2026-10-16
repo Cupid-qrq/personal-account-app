@@ -92,6 +92,8 @@ export function useReadingMotion(sceneKey: string) {
   const { reduced } = useMotionPreference()
   useEffect(() => {
     let frame = 0
+    const nativeScroll = CSS.supports('animation-timeline', 'scroll(root block)')
+    document.documentElement.dataset.scrollEngine = nativeScroll ? 'native' : 'fallback'
     function paint() {
       frame = 0
       const top = window.scrollY
@@ -99,12 +101,8 @@ export function useReadingMotion(sceneKey: string) {
       const root = document.documentElement
       root.style.setProperty('--reading-progress', String(Math.min(1, top / length)))
       root.style.setProperty(
-        '--chapter-drift',
-        reduced ? '0px' : `${-Math.min(top, 380) * 0.055}px`,
-      )
-      root.style.setProperty(
-        '--chapter-turn',
-        reduced ? '0deg' : `${Math.min(top, 380) * -0.008}deg`,
+        '--hero-progress',
+        reduced ? '0' : String(Math.max(0, Math.min(1, top / 260))),
       )
       root.dataset.scrolled = top > 40 ? 'true' : 'false'
     }
@@ -141,15 +139,12 @@ export function MotionScene({ children, sceneKey }: { children: ReactNode; scene
           observer.unobserve(entry.target)
           // Content is visible by default. Never depend on animation completion for correctness.
           entry.target.setAttribute('data-revealed', 'true')
-          const animation = entry.target.animate(
-            [{ transform: 'translateY(14px)' }, { transform: 'translateY(0)' }],
-            {
-              id: 'atlas-reveal',
-              duration: 480,
-              delay: Math.min(stagger++ * 65, 130),
-              easing: 'cubic-bezier(.22,1,.36,1)',
-            },
-          )
+          const animation = entry.target.animate([{ translate: '0 14px' }, { translate: '0 0' }], {
+            id: 'atlas-reveal',
+            duration: 480,
+            delay: Math.min(stagger++ * 40, 160),
+            easing: 'cubic-bezier(.22,1,.36,1)',
+          })
           animations.add(animation)
           animation.finished.catch(() => {}).finally(() => animations.delete(animation))
         }
@@ -159,7 +154,7 @@ export function MotionScene({ children, sceneKey }: { children: ReactNode; scene
     function register() {
       root!
         .querySelectorAll(
-          '.money-summary,.overview-charts,.budget-strip,.overview-bottom>section,.paper-panel,.import-callout,.ledger-content,.month-note-panel',
+          '.money-summary,.overview-charts,.budget-strip,.overview-bottom>section,.paper-panel,.import-callout,.ledger-content,.month-note-panel,.recent-transactions>button',
         )
         .forEach((element) => {
           if (!registered.has(element)) {

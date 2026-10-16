@@ -30,6 +30,7 @@ import { BudgetDialog, ImportDialog, TransactionDetail } from '@/components/dial
 import { ChapterCard, ChapterMeta } from '@/components/chapter'
 import { MonthReviewDialog } from '@/components/month-review'
 import { MotionScene, MotionToggle, useReadingMotion } from '@/components/motion'
+import { MagneticButton } from '@/components/pointer-motion'
 import { request, monthQuery } from '@/lib/api'
 import { useLocationState } from '@/lib/location'
 import { dayLabel, exportCsv, money, monthLabel } from '@/lib/format'
@@ -71,10 +72,10 @@ export function App() {
       ? `${selectedMonth ? monthsCN[Number(selectedMonth.slice(-2)) - 1] : '每个'}月的生活账本`
       : currentNav.label
   const subtitle = {
-    overview: '收支之间，读懂生活的日常。',
-    analysis: '从类别、频率与时间，看看生活的消费习惯。',
-    ledger: '保留每一笔的细节，让所有数字都有来处。',
-    data: '从一份原始文件，到一份清楚的生活记录。',
+    overview: '收支、预算与月度记录。',
+    analysis: '查看分类、频率与消费分布。',
+    ledger: '搜索、筛选与核对账单。',
+    data: '导入账单，核对数据来源。',
   }[view]
   useEffect(() => {
     document.title = `${currentNav.label} · Ledger Atlas`
@@ -172,22 +173,11 @@ export function App() {
             <div>
               <span className="archive-icon">{selectedMonth?.slice(0, 4) || '—'}</span>
               <span>
-                年度记录<small>{data?.months.length || 0} 个月的生活</small>
+                年度记录<small>{data?.months.length || 0} 个月</small>
               </span>
             </div>
           </div>
           <div className="sidebar-bottom">
-            <div className="sidebar-quote">
-              <span className="tiny-asterisk" aria-hidden="true">
-                ✳
-              </span>
-              <p>
-                认真记录，
-                <br />
-                从容生活。
-              </p>
-              <span>MAKE ROOM FOR LIFE.</span>
-            </div>
             <button className="sidebar-help" onClick={() => navigate('data')}>
               <CircleHelp size={16} />
               数据与导入说明
@@ -292,6 +282,11 @@ export function App() {
                       .map((value) => ({ value, label: monthLabel(value) }))}
                   />
                 ) : null}
+                {view === 'overview' && data?.month && (
+                  <MagneticButton className="hero-note-action" onClick={() => setReviewOpen(true)}>
+                    <NotebookPen size={14} aria-hidden="true" /> 月度手记
+                  </MagneticButton>
+                )}
                 {view === 'data' ? null : (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -356,13 +351,9 @@ export function App() {
               </MotionScene>
             )}
             <footer className="page-footer">
+              <span translate="no">Ledger Atlas</span>
               <span>
-                Ledger Atlas <i /> 每一笔，都有生活的注脚。
-              </span>
-              <span>
-                {data?.coverage
-                  ? `数据收录至 ${dayLabel(data.coverage.last_date)}`
-                  : '从真实记录出发'}
+                {data?.coverage ? `数据收录至 ${dayLabel(data.coverage.last_date)}` : '暂无账单'}
                 <span className="footer-currency">CNY · 人民币</span>
               </span>
             </footer>

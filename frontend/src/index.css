@@ -239,25 +239,7 @@ a:focus-visible {
   margin-top: auto;
   padding-top: 60px;
 }
-.sidebar-quote {
-  padding: 20px 13px;
-}
-.tiny-asterisk {
-  color: #a66045;
-  font-size: 26px;
-}
-.sidebar-quote p {
-  font-family: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
-  font-size: 20px;
-  line-height: 1.65;
-  letter-spacing: 0.1em;
-  margin: 8px 0 12px;
-}
-.sidebar-quote > span:last-child {
-  color: #696255;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-}
+
 .sidebar-help {
   display: flex;
   align-items: center;
@@ -933,13 +915,7 @@ a:focus-visible {
   line-height: 1.7;
   margin-top: 5px;
 }
-.observation-footnote {
-  font-size: 12px;
-  color: #6b6150;
-  border-top: 1px solid #e1dacb;
-  padding-top: 15px;
-  margin-top: 18px;
-}
+
 .page-footer {
   border-top: 1px solid var(--border);
   margin-top: 37px;
@@ -955,12 +931,7 @@ a:focus-visible {
   gap: 9px;
   align-items: center;
 }
-.page-footer i {
-  width: 2px;
-  height: 2px;
-  background: #777164;
-  border-radius: 50%;
-}
+
 .footer-currency {
   border-left: 1px solid #d7d0c1;
   padding-left: 10px;
@@ -2109,9 +2080,7 @@ a:focus-visible {
   .observation p {
     font-size: 12px;
   }
-  .observation-footnote {
-    font-size: 12px;
-  }
+
   .page-footer {
     font-size: 12px;
     margin-top: 28px;
@@ -2532,7 +2501,6 @@ a:focus-visible {
 }
 .page-eyebrow,
 .nav-caption,
-.sidebar-quote > span:last-child,
 .eyebrow {
   font-size: 10px;
 }

@@ -40,6 +40,7 @@ export function MonthReviewDialog({
     textarea = useRef<HTMLTextAreaElement>(null),
     errorMessage = useRef<HTMLParagraphElement>(null),
     wasDiscard = useRef(false)
+  const returnFocus = useRef(document.activeElement as HTMLElement | null)
   useEffect(() => {
     if (discard) title.current?.focus()
     else if (wasDiscard.current) textarea.current?.focus()
@@ -86,6 +87,13 @@ export function MonthReviewDialog({
       <DialogContent
         className="review-dialog"
         showCloseButton={!busy}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          const target = returnFocus.current?.isConnected
+            ? returnFocus.current
+            : document.getElementById('page-title')
+          target?.focus({ preventScroll: true })
+        }}
         onOpenAutoFocus={(event) => {
           if (matchMedia('(pointer: coarse)').matches) {
             event.preventDefault()
@@ -95,7 +103,7 @@ export function MonthReviewDialog({
       >
         <DialogHeader>
           <DialogTitle ref={title} tabIndex={-1}>
-            {discard ? '还有未保存的手记' : '为这个月，留一页手记'}
+            {discard ? '还有未保存的手记' : '月度手记'}
           </DialogTitle>
           <DialogDescription>
             {discard

@@ -3,14 +3,14 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 
 export async function audit(call, root, base = 'http://127.0.0.1:8000') {
-  const output = path.join(root, process.env.LEDGER_QA_OUTPUT || 'output/qa-v3.1')
+  const output = path.join(root, process.env.LEDGER_QA_OUTPUT || 'output/qa-v3.2')
   const records = []
   const text = r => r.content?.filter(c => c.type === 'text').map(c => c.text).join('\n') || ''
   const first = text(await call('new_page', { url: base }))
   const pageId = Number(first.match(/(\d+): .+\[selected\]/)?.[1])
   if (!pageId) throw new Error('No Chrome page opened: ' + first)
   async function tool(name, args = {}) {
-    if(name === 'take_screenshot') await call('evaluate_script', {pageId, function:'async () => {await Promise.all(document.getAnimations().filter(a=>a.effect?.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));return true}'})
+    if(name === 'take_screenshot') await call('evaluate_script', {pageId, function:'async () => {await Promise.all(document.getAnimations().filter(a=>a.timeline instanceof DocumentTimeline && a.effect?.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));return true}'})
     const r = await call(name, { pageId, ...args }); if (r.isError) throw new Error(text(r)); return r
   }
   async function evaluate(fn) { const r = text(await tool('evaluate_script', { function: fn })); const json = r.match(/```json\n([\s\S]*?)\n```/); if (!json) throw new Error(r); return JSON.parse(json[1]) }
