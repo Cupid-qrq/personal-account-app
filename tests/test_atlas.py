@@ -116,4 +116,70 @@ class LedgerTests(unittest.TestCase):
         for bad in [CSV.replace('支出,200', '转账,200'), CSV.replace('支出,200', '支出,inf')]:
             self.assertFalse(preview_import(bad.encode(), '.csv', frame)['valid'])
 
+    def test_month_review_persists_without_overwriting_budget(self):
+        preferences.set_budget('2026-10', 3000)
+        response = self.client.put('/api/reviews/2026-10', json={'note': '  添置了书本。\n一起打球。  ', 'status': 'auto'})
+        self.assertEqual(response.status_code, 200)
+        result = self.client.get('/api/summary?month=2026-10').json()
+        self.assertEqual(result['review']['note'], '添置了书本。\n一起打球。')
+        self.assertEqual(result['budget'], 3000)
+        preferences.set_budget('2026-10', 2800)
+        self.assertEqual(preferences.get_reviews()['2026-10']['note'], result['review']['note'])
+
+    def test_explicit_month_close_changes_statistics(self):
+        self.client.put('/api/reviews/2026-10', json={'note': '', 'status': 'closed'})
+        result = self.client.get('/api/summary?month=2026-10').json()
+        self.assertFalse(result['coverage']['is_partial'])
+        self.assertEqual(result['coverage']['observed_days'], 31)
+        self.assertEqual(result['comparison']['expense'], 1000)
+        self.assertEqual(result['metrics']['expense_change'], -80)
+        self.assertEqual(len(self.client.get('/api/patterns?month=2026-10').json()['daily']), 31)
+        self.client.put('/api/reviews/2026-10', json={'note': '', 'status': 'auto'})
+        self.assertEqual(self.client.get('/api/summary?month=2026-10').json()['coverage']['observed_days'], 9)
+
+    def test_historical_month_can_be_marked_in_progress(self):
+        self.client.put('/api/reviews/2026-09', json={'status': 'in_progress'})
+        result = self.client.get('/api/summary?month=2026-09').json()
+        self.assertTrue(result['coverage']['is_partial'])
+        self.assertEqual(result['coverage']['observed_days'], 20)
+
+    def test_incomplete_comparison_month_suppresses_percentage(self):
+        self.client.put('/api/reviews/2026-09', json={'status': 'in_progress'})
+        self.client.put('/api/reviews/2026-10', json={'status': 'closed'})
+        result = self.client.get('/api/summary?month=2026-10').json()
+        self.assertFalse(result['comparison']['available'])
+        self.assertIsNone(result['metrics']['expense_change'])
+
+    def test_in_progress_comparison_uses_coverage_before_date_filter(self):
+        self.client.put('/api/reviews/2026-09', json={'status': 'in_progress'})
+        result = self.client.get('/api/summary?month=2026-10').json()
+        # September is recorded through day 20, even if its first-nine-day
+        # window contains no transaction exactly on day 9.
+        self.assertTrue(result['comparison']['available'])
+        self.assertEqual(result['comparison']['expense'], 100)
+        self.assertEqual(result['metrics']['expense_change'], 100)
+
+    def test_review_validation_and_write_protection(self):
+        self.assertEqual(self.client.put('/api/reviews/2026-10', json={'note': '字'*801}).status_code, 422)
+        self.assertEqual(self.client.put('/api/reviews/2026-10', json={'status': 'invalid'}).status_code, 422)
+        self.assertEqual(self.client.put('/api/reviews/2099-01', json={'note': ''}).status_code, 404)
+        with patch.object(api, 'ADMIN_TOKEN', 'test-token'):
+            self.assertEqual(self.client.put('/api/reviews/2026-10', json={'note': ''}).status_code, 401)
+
+    def test_import_preview_reports_actual_field_changes(self):
+        updated = CSV.replace('支出,200,书', '支出,250,新书')
+        result = preview_import(updated.encode(), '.csv', ingest.load_master())
+        self.assertEqual(result['updated_rows'], 1)
+        self.assertEqual(result['unchanged_rows'], 3)
+        fields = {item['field']: item for item in result['changes'][0]['fields']}
+        self.assertEqual(fields['金额'], {'field': '金额', 'before': '200.00', 'after': '250.00'})
+        self.assertEqual(fields['备注']['after'], '新书')
+        self.assertEqual(ingest.load_master().set_index('ID').loc['003']['金额'], 200)
+
+    def test_unchanged_import_has_no_false_changes(self):
+        result = preview_import(CSV.encode(), '.csv', ingest.load_master())
+        self.assertEqual(result['updated_rows'], 0)
+        self.assertEqual(result['unchanged_rows'], 4)
+        self.assertEqual(result['changes'], [])
+
 if __name__ == '__main__': unittest.main()

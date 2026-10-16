@@ -118,7 +118,7 @@ def _insights(month_df: pd.DataFrame, categories: list[dict[str, Any]]) -> list[
     return insights[:3]
 
 
-def summary(df: pd.DataFrame, month: str | None = None) -> dict[str, Any]:
+def summary(df: pd.DataFrame, month: str | None = None, reviews: dict | None = None) -> dict[str, Any]:
     if df.empty:
         return {"month": None, "months": [], "metrics": {"income": 0, "expense": 0, "balance": 0, "saving_rate": 0, "records": 0, "expense_change": None, "daily_average": 0}, "coverage": None, "comparison": None, "trend": [], "categories": [], "daily": [], "weekday": [], "recent": [], "insights": []}
     months = sorted(df["月份"].dropna().astype(str).unique())
@@ -131,14 +131,22 @@ def summary(df: pd.DataFrame, month: str | None = None) -> dict[str, Any]:
     trend = _trend(df)
     last_date = pd.to_datetime(month_df["时间"]).max()
     period = pd.Period(month, freq="M")
-    is_partial = month == months[-1] and last_date.day < period.days_in_month
+    reviews = reviews or {}
+    review = reviews.get(month, {"note": "", "status": "auto", "updated_at": None})
+    status = review.get("status", "auto")
+    is_partial = (status == "in_progress" or (status == "auto" and month == months[-1])) and last_date.day < period.days_in_month
     observed_days = last_date.day if is_partial else period.days_in_month
     previous_month = str(period - 1)
     previous = df[df["月份"].astype(str) == previous_month]
+    previous_last_day = pd.to_datetime(previous["时间"]).max().day if not previous.empty else 0
     if is_partial:
         previous = previous[pd.to_datetime(previous["时间"]).dt.day <= observed_days]
     previous_expense = _money(previous.loc[previous["类型"] == "支出", "金额"].sum())
-    change = _pct_change(expense, previous_expense) if not previous.empty and previous_expense > 0 else None
+    previous_complete = not previous.empty and not (
+        reviews.get(previous_month, {}).get("status") == "in_progress"
+        and previous_last_day < min(observed_days, (period - 1).days_in_month)
+    )
+    change = _pct_change(expense, previous_expense) if previous_complete and previous_expense > 0 else None
     categories = _category_rows(month_df)
     insights = _insights(month_df, categories)
     if change is not None:
@@ -152,6 +160,7 @@ def summary(df: pd.DataFrame, month: str | None = None) -> dict[str, Any]:
         daily.append({"date": date, "amount": amount, "cumulative": _money(running)})
     return {
         "month": month,
+        "review": review,
         "months": months,
         "metrics": {
             "income": income,
@@ -163,7 +172,7 @@ def summary(df: pd.DataFrame, month: str | None = None) -> dict[str, Any]:
             "daily_average": _money(expense / observed_days),
         },
         "coverage": {"last_date": last_date.strftime("%Y-%m-%d"), "is_partial": is_partial, "observed_days": observed_days, "month_days": period.days_in_month},
-        "comparison": {"month": previous_month, "expense": previous_expense, "partial": is_partial, "available": not previous.empty},
+        "comparison": {"month": previous_month, "expense": previous_expense, "partial": is_partial, "available": previous_complete},
         "trend": trend,
         "categories": categories,
         "daily": daily,
@@ -173,8 +182,8 @@ def summary(df: pd.DataFrame, month: str | None = None) -> dict[str, Any]:
     }
 
 
-def patterns(df: pd.DataFrame, month: str | None = None) -> dict[str, Any]:
-    data = summary(df, month)
+def patterns(df: pd.DataFrame, month: str | None = None, reviews: dict | None = None) -> dict[str, Any]:
+    data = summary(df, month, reviews)
     categories = data["categories"]
     sub = _month_frame(df, data["month"])
     sub = sub[sub["类型"] == "支出"]

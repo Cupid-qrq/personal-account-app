@@ -7,7 +7,9 @@ import '@fontsource/dm-sans/latin-600.css'
 import '@fontsource/newsreader/latin-400.css'
 import { App } from './App'
 import { ErrorBoundary } from './components/error-boundary'
+import { MotionProvider } from './components/motion'
 import './index.css'
+import './motion.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 30000, retry: 1, refetchOnWindowFocus: false, networkMode: 'always' },
@@ -17,7 +19,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
-        <App />
+        <MotionProvider>
+          <App />
+        </MotionProvider>
       </ErrorBoundary>
     </QueryClientProvider>
   </React.StrictMode>,

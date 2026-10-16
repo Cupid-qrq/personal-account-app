@@ -12,24 +12,27 @@ import { CashChart, CategoryChart } from '@/components/charts'
 import { CategoryIcon } from '@/components/shared'
 import { dayLabel, money } from '@/lib/format'
 import type { Summary, Transaction } from '@/lib/types'
+import { MonthNote } from '@/components/chapter'
 
 export default function Overview({
   data,
   onLedger,
   onDetail,
   onBudget,
+  onReview,
 }: {
   data: Summary
   onLedger: (category?: string, date?: string) => void
   onDetail: (row: Transaction) => void
   onBudget: () => void
+  onReview: () => void
 }) {
   const m = data.metrics
   const change = m.expense_change
   const rate = data.budget ? (m.expense / data.budget) * 100 : 0
   return (
     <>
-      <section className="money-summary" aria-label="本月收支摘要">
+      <section id="monthly-details" className="money-summary" aria-label="本月收支摘要">
         <div className="primary-amount">
           <div className="metric-label">
             <span className="small-mark expense-dot" />
@@ -77,9 +80,11 @@ export default function Overview({
       <div className="coverage-note">
         <Info size={14} />
         <span>
-          {data.coverage?.is_partial
-            ? `本月账单收录至 ${dayLabel(data.coverage.last_date)}，尚非整月；环比按上月同期比较。`
-            : '按已导入账单汇总，未记账的消费不包含在统计中。'}
+          {data.review?.status === 'closed'
+            ? '你已确认完成本月月结。日均和环比均按整月计算。'
+            : data.coverage?.is_partial
+              ? `本月账单收录至 ${dayLabel(data.coverage.last_date)}，尚非整月；环比按上月同期比较。`
+              : '按已导入账单汇总，未记账的消费不包含在统计中。'}
         </span>
       </div>
       <div className="overview-charts">
@@ -195,6 +200,7 @@ export default function Overview({
           <p className="observation-footnote">记录是理解生活的起点，不是对生活的评分。</p>
         </section>
       </div>
+      <MonthNote data={data} onEdit={onReview} />
     </>
   )
 }

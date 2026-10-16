@@ -3,7 +3,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 
 export async function audit(call, root, base = 'http://127.0.0.1:8000') {
-  const output = path.join(root, 'output/qa')
+  const output = path.join(root, process.env.LEDGER_QA_OUTPUT || 'output/qa-v3.1')
   const records = []
   const text = r => r.content?.filter(c => c.type === 'text').map(c => c.text).join('\n') || ''
   const first = text(await call('new_page', { url: base }))

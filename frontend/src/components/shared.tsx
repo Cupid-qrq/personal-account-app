@@ -41,15 +41,19 @@ export function Choice({
   onChange,
   label,
   items,
+  id,
+  disabled,
 }: {
   value: string
   onChange: (v: string) => void
   label: string
   items: { value: string; label: string }[]
+  id?: string
+  disabled?: boolean
 }) {
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger aria-label={label}>
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger id={id} aria-label={label}>
         <SelectValue placeholder={label} />
       </SelectTrigger>
       <SelectContent>

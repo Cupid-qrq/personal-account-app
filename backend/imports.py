@@ -3,8 +3,42 @@ import hashlib
 import math
 import pandas as pd
 from .ingest import _read_bytes, _rename_columns, normalize_records
+from .config import RAW_COLUMNS
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+
+def _diff_value(value, field: str) -> str:
+    if pd.isna(value) or value == "":
+        return ""
+    if field == "时间":
+        return pd.Timestamp(value).strftime("%Y-%m-%d %H:%M:%S")
+    if field in {"金额", "手续费", "优惠券"}:
+        return f"{float(value):.2f}"
+    return str(value).strip()
+
+
+def _changes(cleaned: pd.DataFrame, existing: pd.DataFrame) -> tuple[int, list]:
+    if existing.empty:
+        return 0, []
+    old = existing.set_index("ID")
+    changes, count = [], 0
+    for _, row in cleaned.iterrows():
+        if row["ID"] not in old.index:
+            continue
+        before = old.loc[row["ID"]]
+        fields = []
+        for field in RAW_COLUMNS:
+            if field == "ID":
+                continue
+            a, b = _diff_value(before.get(field, ""), field), _diff_value(row.get(field, ""), field)
+            if a != b:
+                fields.append({"field": field, "before": a, "after": b})
+        if fields:
+            count += 1
+            if len(changes) < 20:
+                changes.append({"id": str(row["ID"]), "fields": fields})
+    return count, changes
 
 def preview_import(content: bytes, suffix: str, existing: pd.DataFrame) -> dict:
     if suffix not in {".csv", ".xlsx", ".xls"}:
@@ -38,10 +72,13 @@ def preview_import(content: bytes, suffix: str, existing: pd.DataFrame) -> dict:
     cleaned = normalize_records(raw)
     ids = set(existing["ID"].astype(str)) if not existing.empty else set()
     incoming = set(cleaned["ID"].astype(str))
+    updated_rows, changes = _changes(cleaned, existing) if not issues else (0, [])
     return {
         "valid": not issues,
         "raw_rows": len(raw), "unique_rows": len(cleaned),
         "new_rows": len(incoming - ids), "existing_rows": len(incoming & ids),
+        "updated_rows": updated_rows, "unchanged_rows": len(incoming & ids) - updated_rows,
+        "changes": changes, "changes_truncated": updated_rows > len(changes),
         "duplicate_rows": len(raw) - len(cleaned) if not issues else 0,
         "issues": issues[:20], "issue_count": len(issues),
         "months": sorted(cleaned["月份"].unique().tolist()),

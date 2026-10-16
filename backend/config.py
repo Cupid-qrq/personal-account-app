@@ -16,7 +16,7 @@ FRONTEND_DIR = ROOT / "frontend" / "dist"
 SETTINGS_FILE = DATA_DIR / "settings.json"
 
 APP_NAME = "Ledger Atlas"
-APP_VERSION = "3.0.0"
+APP_VERSION = "3.1.0"
 ADMIN_TOKEN = os.getenv("LEDGER_ADMIN_TOKEN", "")
 
 RAW_COLUMNS = [

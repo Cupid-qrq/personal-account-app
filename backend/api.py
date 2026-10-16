@@ -4,6 +4,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
+from typing import Literal
 
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,7 +17,7 @@ from .analytics import patterns, summary
 from .config import APP_NAME, APP_VERSION, ADMIN_TOKEN, FRONTEND_DIR, ORIGIN_DIR
 from .ingest import load_master, rebuild
 from .imports import MAX_UPLOAD_BYTES, preview_import
-from .preferences import get_budget, set_budget
+from .preferences import get_budget, set_budget, get_reviews, set_review
 
 
 app = FastAPI(title=APP_NAME, version=APP_VERSION)
@@ -56,14 +57,14 @@ def health() -> dict[str, object]:
 
 @app.get("/api/summary")
 def get_summary(month: str | None = None) -> dict[str, object]:
-    result = summary(_data(), month)
+    result = summary(_data(), month, get_reviews())
     result["budget"] = get_budget(result["month"]) if result["month"] else None
     return result
 
 
 @app.get("/api/patterns")
 def get_patterns(month: str | None = None) -> dict[str, object]:
-    return patterns(_data(), month)
+    return patterns(_data(), month, get_reviews())
 
 
 @app.get("/api/transactions")
@@ -152,7 +153,20 @@ async def import_file(file: UploadFile = File(...), x_admin_token: str | None = 
 
 
 class BudgetInput(BaseModel):
-    amount: float | None = Field(default=None, gt=0, le=10000000, allow_inf_nan=False)
+    amount: float | None = Field(default=None, ge=0.01, le=10000000, allow_inf_nan=False)
+
+
+class ReviewInput(BaseModel):
+    note: str = Field(default="", max_length=800)
+    status: Literal["auto", "in_progress", "closed"] = "auto"
+
+
+@app.put("/api/reviews/{month}")
+def update_review(month: str, body: ReviewInput, x_admin_token: str | None = Header(default=None)) -> dict:
+    _require_admin(x_admin_token)
+    if month not in set(_data()["月份"].astype(str)):
+        raise HTTPException(status_code=404, detail="该月份没有账单，请先导入记录。")
+    return set_review(month, body.note, body.status)
 
 
 @app.put("/api/budgets/{month}")

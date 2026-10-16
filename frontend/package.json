@@ -1,7 +1,7 @@
 {
   "name": "ledger-atlas-web",
   "private": true,
-  "version": "3.0.0",
+  "version": "3.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -10,7 +10,9 @@
     "test": "node ../scripts/chrome-audit.mjs",
     "qa:chrome": "node ../scripts/chrome-audit.mjs",
     "format": "prettier --write src vite.config.ts",
-    "format:check": "prettier --check src vite.config.ts"
+    "format:check": "prettier --check src vite.config.ts",
+    "qa:motion": "node ../scripts/chrome-audit.mjs --motion-only",
+    "qa:reduced": "node ../scripts/chrome-audit.mjs --motion-only --reduced"
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.3.0",

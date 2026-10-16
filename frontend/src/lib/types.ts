@@ -14,10 +14,16 @@ export type Transaction = {
 }
 export type Category = { name: string; amount: number; share: number; records: number }
 export type Daily = { date: string; amount: number; cumulative: number }
+export type MonthReview = {
+  note: string
+  status: 'auto' | 'in_progress' | 'closed'
+  updated_at?: string | null
+}
 export type Summary = {
   month: string | null
   months: string[]
   budget: number | null
+  review?: MonthReview
   metrics: {
     income: number
     expense: number
@@ -72,6 +78,10 @@ export type ImportPreview = {
   unique_rows: number
   new_rows: number
   existing_rows: number
+  updated_rows: number
+  unchanged_rows: number
+  changes: { id: string; fields: { field: string; before: string; after: string }[] }[]
+  changes_truncated: boolean
   duplicate_rows: number
   issue_count: number
   issues: { row: number; reason: string }[]

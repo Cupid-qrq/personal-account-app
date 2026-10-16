@@ -348,18 +348,60 @@ export function ImportDialog({
                     <span>新增记录</span>
                   </div>
                   <div>
-                    <b>{preview.existing_rows}</b>
-                    <span>已有 ID</span>
+                    <b>{preview.updated_rows}</b>
+                    <span>内容变更</span>
                   </div>
                   <div>
-                    <b>{preview.duplicate_rows}</b>
-                    <span>文件内重复</span>
+                    <b>{preview.unchanged_rows}</b>
+                    <span>保持不变</span>
                   </div>
                 </div>
                 {preview.valid ? (
                   <>
                     <p>覆盖月份：{preview.months.join('、')}</p>
                     <p className="field-hint">已有 ID 会更新为本次内容；预览阶段尚未修改账本。</p>
+                    {preview.duplicate_rows > 0 && (
+                      <p className="field-hint">
+                        文件内 {preview.duplicate_rows} 条重复 ID 已合并，取最后一行。
+                      </p>
+                    )}
+                    {preview.changes.length > 0 && (
+                      <details className="import-diff">
+                        <summary>查看 {preview.updated_rows} 笔变更的前后差异</summary>
+                        <div>
+                          {preview.changes.map((change) => (
+                            <section className="diff-record" key={change.id}>
+                              <p>
+                                记录 <code>{change.id}</code>
+                              </p>
+                              <dl>
+                                {change.fields.map((field) => (
+                                  <div key={field.field}>
+                                    <dt>{field.field}</dt>
+                                    <dd>
+                                      <span className="diff-before">
+                                        <span className="sr-only">原值：</span>
+                                        {field.before || '空'}
+                                      </span>
+                                      <ArrowRight size={12} aria-hidden="true" />
+                                      <span className="diff-after">
+                                        <span className="sr-only">新值：</span>
+                                        {field.after || '空'}
+                                      </span>
+                                    </dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            </section>
+                          ))}
+                        </div>
+                        {preview.changes_truncated && (
+                          <p className="field-hint">
+                            为便于阅读，显示前 20 笔变更。其余变更也会应用。
+                          </p>
+                        )}
+                      </details>
+                    )}
                   </>
                 ) : (
                   <ul className="import-issues">

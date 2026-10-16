@@ -27,6 +27,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Toaster } from '@/components/ui/sonner'
 import { Choice, Empty, ErrorState, Loading } from '@/components/shared'
 import { BudgetDialog, ImportDialog, TransactionDetail } from '@/components/dialogs'
+import { ChapterCard, ChapterMeta } from '@/components/chapter'
+import { MonthReviewDialog } from '@/components/month-review'
+import { MotionScene, MotionToggle, useReadingMotion } from '@/components/motion'
 import { request, monthQuery } from '@/lib/api'
 import { useLocationState } from '@/lib/location'
 import { dayLabel, exportCsv, money, monthLabel } from '@/lib/format'
@@ -47,6 +50,7 @@ export function App() {
     qc = useQueryClient()
   const { view, month, params, update } = location
   const [importOpen, setImportOpen] = useState(false),
+    [reviewOpen, setReviewOpen] = useState(false),
     [budgetOpen, setBudgetOpen] = useState(false),
     [detail, setDetail] = useState<Transaction | null>(null)
   const summary = useQuery({
@@ -60,6 +64,8 @@ export function App() {
   const data = summary.data,
     selectedMonth = data?.month || month
   const currentNav = navigation.find((item) => item.id === view)!
+  const navIndex = navigation.findIndex((item) => item.id === view)
+  useReadingMotion(view)
   const title =
     view === 'overview'
       ? `${selectedMonth ? monthsCN[Number(selectedMonth.slice(-2)) - 1] : '每个'}月的生活账本`
@@ -124,7 +130,10 @@ export function App() {
       <a className="skip-link" href="#main-content">
         跳到主要内容
       </a>
-      <div className="app-shell">
+      <div className="app-shell" style={{ '--nav-index': navIndex } as React.CSSProperties}>
+        <div className="reading-progress" aria-hidden="true">
+          <i />
+        </div>
         <aside className="sidebar">
           <a className="brand" href="/" aria-label="Ledger Atlas 首页">
             <span className="brand-symbol">
@@ -202,6 +211,7 @@ export function App() {
               <strong>{currentNav.label}</strong>
             </div>
             <div className="header-actions">
+              <MotionToggle />
               <span className="sync-status">
                 <i className={summary.isError ? 'offline' : ''} />
                 {summary.isFetching ? '同步中…' : summary.isError ? '连接异常' : '账本已同步'}
@@ -234,8 +244,10 @@ export function App() {
             </div>
           </header>
           <main id="main-content" className="main-content">
-            <div className="page-heading">
-              <div>
+            <div
+              className={`page-heading ${view === 'overview' && data?.month ? 'chapter-heading' : ''}`}
+            >
+              <div className="heading-copy">
                 <div className="page-eyebrow">
                   <span>
                     {view === 'overview'
@@ -254,7 +266,11 @@ export function App() {
                   <span className="title-dot">.</span>
                 </h1>
                 <p>{subtitle}</p>
+                {view === 'overview' && data?.month && <ChapterMeta data={data} />}
               </div>
+              {view === 'overview' && data?.month && (
+                <ChapterCard data={data} onEdit={() => setReviewOpen(true)} />
+              )}
               <div className="page-actions">
                 {view !== 'data' && data?.months.length ? (
                   <Choice
@@ -320,21 +336,24 @@ export function App() {
                 }
               />
             ) : (
-              <Suspense fallback={<Loading />}>
-                {view === 'overview' && data && (
-                  <Overview
-                    data={data}
-                    onLedger={openLedger}
-                    onDetail={setDetail}
-                    onBudget={() => setBudgetOpen(true)}
-                  />
-                )}{' '}
-                {view === 'analysis' && data && <Analysis data={data} onLedger={openLedger} />}{' '}
-                {view === 'ledger' && data && (
-                  <Ledger data={data} params={params} update={update} onDetail={setDetail} />
-                )}{' '}
-                {view === 'data' && <DataPage onImport={() => setImportOpen(true)} />}
-              </Suspense>
+              <MotionScene sceneKey={`${view}:${selectedMonth}`}>
+                <Suspense fallback={<Loading />}>
+                  {view === 'overview' && data && (
+                    <Overview
+                      data={data}
+                      onLedger={openLedger}
+                      onDetail={setDetail}
+                      onBudget={() => setBudgetOpen(true)}
+                      onReview={() => setReviewOpen(true)}
+                    />
+                  )}{' '}
+                  {view === 'analysis' && data && <Analysis data={data} onLedger={openLedger} />}{' '}
+                  {view === 'ledger' && data && (
+                    <Ledger data={data} params={params} update={update} onDetail={setDetail} />
+                  )}{' '}
+                  {view === 'data' && <DataPage onImport={() => setImportOpen(true)} />}
+                </Suspense>
+              </MotionScene>
             )}
             <footer className="page-footer">
               <span>
@@ -377,6 +396,12 @@ export function App() {
                     {item.title}。{item.body}
                   </p>
                 ))}
+                {data.review?.note && (
+                  <>
+                    <h2>本月手记</h2>
+                    <p className="printed-note">{data.review.note}</p>
+                  </>
+                )}
                 <p>数据只来自已导入的账单；未记账消费不包含在统计中。</p>
               </section>
             )}
@@ -415,6 +440,13 @@ export function App() {
         />
       )}
       <TransactionDetail row={detail} onClose={() => setDetail(null)} />
+      {reviewOpen && data && (
+        <MonthReviewDialog
+          data={data}
+          authRequired={health.data?.auth_required ?? false}
+          onClose={() => setReviewOpen(false)}
+        />
+      )}
       <Toaster theme="light" richColors position="top-center" />
     </TooltipProvider>
   )
